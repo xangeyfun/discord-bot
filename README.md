@@ -1,6 +1,6 @@
 # Discord Bot
 
-A simple Discord bot with slash commands built using discord.py.
+A simple Discord bot with slash commands built using python.
 
 ## Features
 
@@ -29,7 +29,7 @@ APPLICATION_ID=your_application_id_here
 
 4. Run the bot:
 ```bash
-python bot.py
+python3 bot.py
 ```
 
 ## Commands
@@ -39,10 +39,10 @@ python bot.py
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.x
 - discord.py
 - python-dotenv
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
