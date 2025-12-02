@@ -9,6 +9,7 @@ import datetime
 import time
 import ast
 
+# Track startup time for performance metrics
 startup = time.time()
 
 load_dotenv()
@@ -48,7 +49,8 @@ async def help(interaction: discord.Interaction):
         "> `/random <int> <int>` - Generate a random number between a and b.\n"
         "> `/userinfo <str>` - Get info about a user.\n"
         "> `/quote <str>` - Get a quote (Today or Random).\n"
-        "> `/meme [str] [bool]` - Get a random meme.\n"
+        "> `/meme [str]` - Get a random meme.\n"
+        "> `/duck` - Get a random duck picture.\n"
     )
     await interaction.response.send_message(help_text, ephemeral=True)
 
