@@ -4,8 +4,9 @@ A simple Discord bot made to learn the discord.py library.
 
 ## Features
 
+- Simple easy to read code
 - Slash command support
-- Ping command to test the bot's latency
+- Some basic commands
 
 ## Setup
 
@@ -35,6 +36,9 @@ python3 bot.py
 ## Commands
 
 - `/ping` - test the bot's latency
+- `/calc` - evaluate a simple expression
+- `/flip` - flip a coin
+- `/github` - link to the source code
 
 ## Requirements
 

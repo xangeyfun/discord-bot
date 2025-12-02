@@ -49,4 +49,25 @@ async def flip(interaction: Interaction):
 async def github(interaction: discord.Interaction):
     await interaction.response.send_message(f"> Bot made by xangey_fun <@996771607630585856>\n> <https://github.com/xangeyfun/discord-bot>")
 
+@bot.tree.command(name="rps", description="Rock Paper Scissors", guild=guild)
+@app_commands.describe(hand="Rock / Paper / Scissors")
+async def rps(interaction: Interaction, hand: str):
+    hand = hand.lower()
+    choices = ["rock", "paper", "scissors"]
+
+    if hand not in choices:
+        await interaction.response.send_message(f"> Invalid input: {hand}")
+        return
+
+    bot_choice = random.choice(choices)
+
+    if bot_choice == hand:
+        result = "Draw!"
+    elif (hand == "rock" and bot_choice == "scissors") or (hand == "paper" and bot_choice == "rock") or (hand == "scissors" and bot_choice == "paper"):
+        result = "Human won!"
+    else:
+        result = "Bot won!"
+
+    await interaction.response.send_message(f"> :robot:: {bot_choice.capitalize()}  -  :bust_in_silhouette:: {hand.capitalize()}\n> {result}")
+
 bot.run(TOKEN)
