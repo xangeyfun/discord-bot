@@ -1,6 +1,6 @@
 # Discord Bot
 
-A simple Discord bot with slash commands built using python.
+A simple Discord bot made to learn the discord.py library.
 
 ## Features
 
