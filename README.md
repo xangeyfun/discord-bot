@@ -42,6 +42,7 @@ python3 bot.py
 - `/github` - link to the source code
 - `/rps` - Rock Paper Siccors
 - `/random` - Generate a random number
+- `/userinfo` - Get info about a user
 - `/token` - get the bot token (admin only)
 
 ## Requirements
