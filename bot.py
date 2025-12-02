@@ -57,8 +57,11 @@ async def calc(interaction: Interaction, expression: str):
     if any(c not in allowed for c in expression):
         await interaction.response.send_message("> invalid expression", ephemeral=True)
         return
-    result = eval(expression)
-    await interaction.response.send_message(f"> `{expression}` = {result}")
+    try:
+        result = eval(expression)
+        await interaction.response.send_message(f"> `{expression}` = {result}")
+    except Exception as e:
+        await interaction.response.send_message(f"> Error evaluating expression: {e}", ephemeral=True)
 
 @bot.tree.command(name="flip", description="Flip a coin.", guild=guild)
 async def flip(interaction: Interaction):
@@ -109,7 +112,8 @@ async def token(interaction: Interaction):
         await interaction.response.send_message(f"> You are not allowed to run this command.", ephemeral=True)
         return
     else:
-        await interaction.response.send_message(f"> The current bot token is\n> `{TOKEN}`", ephemeral=True)
+        masked = (TOKEN[:16] + "*" * (len(TOKEN) - 8) + TOKEN[-16:]) if TOKEN else "no token set"
+        await interaction.response.send_message(f"> The current bot token is\n> `{masked}`", ephemeral=True)
 
 @bot.tree.command(name="userinfo", description="Get info about a user", guild=guild)
 @app_commands.describe(user="The user you want info about")
