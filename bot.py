@@ -22,8 +22,8 @@ async def on_ready():
         print(f"Error while syncing commands: {e}")
 
 # a simple slash command
-@bot.tree.command(name="hello", description="Say hi to the bot!")
-async def hello(interaction: discord.Interaction):
-    await interaction.response.send_message(f"Hi, {interaction.user.mention}!")
+@bot.tree.command(name="ping", description="Test the bot's latency.")
+async def ping(interaction: discord.Interaction):
+    await interaction.response.send_message(f"> Pong! {round(bot.latency * 1000)}ms")
 
 bot.run(TOKEN)
