@@ -109,7 +109,7 @@ async def rps(interaction: Interaction, hand: str, hidden: bool = False):
     else:
         await interaction.response.send_message(f"> :robot: {bot_choice.capitalize()}  -  :bust_in_silhouette: {hand.capitalize()}\n> {result}")
 
-@bot.tree.command(name="random", description="Random number generator (float)", guild=guild)
+@bot.tree.command(name="random", description="Random number generator", guild=guild)
 @app_commands.describe(a="Lowest number", b="Highest number", hidden="Hide the command from others")
 async def random_number(interaction: Interaction, a: float, b: float, hidden: bool = False):
     if a >= b:
@@ -144,15 +144,17 @@ async def quote(interaction: discord.Interaction, choice: str, hidden: bool = Fa
     if choice.lower() != "today" and choice.lower() != "random":
         await interaction.response.send_message(f"> Invalid input: {choice}", ephemeral=True)
         return
-
-    await interaction.response.defer()
-    r = requests.get(f"https://zenquotes.io/api/{choice.lower()}")
+    try:
+        r = requests.get(f"https://zenquotes.io/api/{choice.lower()}")
+    except Exception as e:
+        await interaction.response.send_message(f"> Could not fetch quote. Please try again later.\nDetails: {e}", ephemeral=True)
+        return
     print(f"Request response: {r.text}")
     data = r.json()
     if hidden:
-        await interaction.followup.send(f"> \"{data[0]['q']}\" - {data[0]['a']}", ephemeral=True)
+        await interaction.response.send_message(f"> \"{data[0]['q']}\" - {data[0]['a']}", ephemeral=True)
     else:
-        await interaction.followup.send(f"> \"{data[0]['q']}\" - {data[0]['a']}")
+        await interaction.response.send_message(f"> \"{data[0]['q']}\" - {data[0]['a']}")
 
 @bot.tree.command(name="meme", description="Get a random meme", guild=guild)
 @app_commands.describe(subreddit="Subreddit to get meme from (optional)", hidden="Hide the command from others")
