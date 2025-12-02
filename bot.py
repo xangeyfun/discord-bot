@@ -41,7 +41,7 @@ async def calc(interaction: Interaction, expression: str):
         await interaction.response.send_message("> invalid expression")
         return
     result = eval(expression)
-    await interaction.response.send_message(f"> {expression} = {result}")
+    await interaction.response.send_message(f"> `{expression}` = {result}")
 
 @bot.tree.command(name="flip", description="Flip a coin.", guild=guild)
 async def flip(interaction: Interaction):
@@ -70,7 +70,7 @@ async def rps(interaction: Interaction, hand: str):
     else:
         result = "Bot won!"
 
-    await interaction.response.send_message(f"> :robot:: {bot_choice.capitalize()}  -  :bust_in_silhouette:: {hand.capitalize()}\n> {result}")
+    await interaction.response.send_message(f"> :robot: {bot_choice.capitalize()}  -  :bust_in_silhouette: {hand.capitalize()}\n> {result}")
 
 @bot.tree.command(name="random", description="Random number generator (float)", guild=guild)
 @app_commands.describe(a="Lowest number", b="Highest number")
@@ -87,6 +87,6 @@ async def token(interaction: Interaction):
         await interaction.response.send_message(f"> You are not allowed to run this command.", ephemeral=True)
         return
     else:
-        await interaction.response.send_message(f"> The current bot token is `{TOKEN}`", ephemeral=True)
+        await interaction.response.send_message(f"> The current bot token is\n> `{TOKEN}`", ephemeral=True)
 
 bot.run(TOKEN)
