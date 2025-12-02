@@ -4,9 +4,7 @@ A simple Discord bot with slash commands built using python.
 
 ## Features
 
-- Slash commands support
-- Hello command
-- Ping command to check bot latency
+- None right now.
 
 ## Setup
 
@@ -23,7 +21,7 @@ pip install -r requirements.txt
 
 3. Create a `.env` file with your bot credentials:
 ```
-BOT_TOKEN=your_bot_token_here
+TOKEN=your_bot_token_here
 APPLICATION_ID=your_application_id_here
 ```
 
@@ -34,8 +32,7 @@ python3 bot.py
 
 ## Commands
 
-- `/hello` - Say hello to the bot
-- `/ping` - Check the bot's latency
+- None right now.
 
 ## Requirements
 
