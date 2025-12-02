@@ -27,23 +27,13 @@ async def on_ready():
 # a simple slash command
 @bot.tree.command(name="ping", description="Test the bot's latency.")
 async def ping(interaction: discord.Interaction):
-    await interaction.response.send_message(f"> Pong! {round(bot.latency * 1000)}ms")
+    await interaction.response.send_message(f"> Pong! {round(bot.latency * 1000)}ms :ping_pong:")
 
 
 @bot.tree.command(name="calc", description="Simple calculator", guild=guild)
-@app_commands.describe(a="first number", o="operator (+ - * /)", b="second number")
-async def calc(interaction: Interaction, a: float, o: str, b: float):
-    if o == "+":
-        result = a + b
-    elif o == "-":
-        result = a - b
-    elif o == "*":
-        result = a * b
-    elif o == "/":
-        result = a / b if b != 0 else "undefined (division by 0)"
-    else:
-        result = "invalid operator"
-
-    await interaction.response.send_message(f"{a} {o} {b} = {result}")
+@app_commands.describe(expression="an expression like 5*2+3")
+async def calc(interaction: Interaction, expression: str):
+    result = eval(expression)
+    await interaction.response.send_message(f"{expression} = {result}")
 
 bot.run(TOKEN)
