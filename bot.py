@@ -89,4 +89,15 @@ async def token(interaction: Interaction):
     else:
         await interaction.response.send_message(f"> The current bot token is\n> `{TOKEN}`", ephemeral=True)
 
+@bot.tree.command(name="userinfo", description="Get info about a user", guild=guild)
+@app_commands.describe(user="The user you want info about")
+async def userinfo(interaction: discord.Interaction, user: discord.Member):
+    roles = [role.name for role in user.roles if role.name != "@everyone"]
+    embed = discord.Embed(title=f"{user}", color=discord.Color.blue())
+    embed.add_field(name="ID", value=user.id)
+    embed.add_field(name="Joined server", value=user.joined_at.strftime("%Y-%m-%d"))
+    embed.add_field(name="Roles", value=", ".join(roles) or "None")
+    await interaction.response.send_message(embed=embed)
+
+
 bot.run(TOKEN)
