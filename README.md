@@ -39,6 +39,7 @@ python3 bot.py
 - `/calc` - evaluate a simple expression
 - `/flip` - flip a coin
 - `/github` - link to the source code
+- `/rps` - Rock Paper Siccors
 
 ## Requirements
 

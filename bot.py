@@ -70,4 +70,14 @@ async def rps(interaction: Interaction, hand: str):
 
     await interaction.response.send_message(f"> :robot:: {bot_choice.capitalize()}  -  :bust_in_silhouette:: {hand.capitalize()}\n> {result}")
 
+@bot.tree.command(name="random", description="Random number generator (float)", guild=guild)
+@app_commands.describe(a="Lowest number", b="Highest number")
+async def random_number(interaction: Interaction, a: float, b: float):
+    if a >= b:
+        await interaction.response.send_message("> First number must be less than the second")
+        return
+    result = random.uniform(a, b)
+    await interaction.response.send_message(f"> Result: {result}")
+
+
 bot.run(TOKEN)
