@@ -9,6 +9,7 @@ load_dotenv()
 
 # create bot with intents
 intents = discord.Intents.default()
+intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 TOKEN = os.getenv("TOKEN")
 GUILD_ID = os.getenv("GUILD")
