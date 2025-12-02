@@ -14,8 +14,6 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents, status=discord.Status.online, activity=discord.Game("Type / for commands"))
 TOKEN = os.getenv("TOKEN")
-GUILD_ID = os.getenv("GUILD")
-guild = discord.Object(id=GUILD_ID)
 allowed_user = os.getenv("ALLOWED_USER_ID")
 
 # when bot is ready
