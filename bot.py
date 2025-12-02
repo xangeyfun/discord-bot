@@ -4,6 +4,7 @@ from discord.ext import commands
 import os
 from dotenv import load_dotenv
 import random
+import requests
 
 load_dotenv()
 
@@ -38,7 +39,7 @@ async def ping(interaction: discord.Interaction):
 async def calc(interaction: Interaction, expression: str):
     allowed = "0123456789+-*/(). "
     if any(c not in allowed for c in expression):
-        await interaction.response.send_message("> invalid expression")
+        await interaction.response.send_message("> invalid expression", ephemeral=True)
         return
     result = eval(expression)
     await interaction.response.send_message(f"> `{expression}` = {result}")
@@ -53,12 +54,17 @@ async def github(interaction: discord.Interaction):
 
 @bot.tree.command(name="rps", description="Rock Paper Scissors", guild=guild)
 @app_commands.describe(hand="Rock / Paper / Scissors")
+@app_commands.choices(hand=[
+    app_commands.Choice(name="Rock", value="Rock"),
+    app_commands.Choice(name="Paper", value="Paper"),
+    app_commands.Choice(name="Siccors", value="Siccors")
+])
 async def rps(interaction: Interaction, hand: str):
     hand = hand.lower()
     choices = ["rock", "paper", "scissors"]
 
     if hand not in choices:
-        await interaction.response.send_message(f"> Invalid input: {hand}")
+        await interaction.response.send_message(f"> Invalid input: {hand}", ephemeral=True)
         return
 
     bot_choice = random.choice(choices)
@@ -76,7 +82,7 @@ async def rps(interaction: Interaction, hand: str):
 @app_commands.describe(a="Lowest number", b="Highest number")
 async def random_number(interaction: Interaction, a: float, b: float):
     if a >= b:
-        await interaction.response.send_message("> First number must be less than the second")
+        await interaction.response.send_message("> First number must be less than the second", ephemeral=True)
         return
     result = random.randint(a, b)
     await interaction.response.send_message(f"> Result: {result}")
@@ -99,5 +105,21 @@ async def userinfo(interaction: discord.Interaction, user: discord.Member):
     embed.add_field(name="Roles", value=", ".join(roles) or "None")
     await interaction.response.send_message(embed=embed)
 
+@bot.tree.command(name="quote", description="Get a qoute", guild=guild)
+@app_commands.describe(choice='"Today" or "Random"')
+@app_commands.choices(choice=[
+    app_commands.Choice(name="Today", value="Today"),
+    app_commands.Choice(name="Random", value="Random")
+])
+async def qoute(interaction: discord.Interaction, choice: str):
+    if choice.lower() != "today" and choice.lower() != "random":
+        await interaction.response.send_message(f"> Invalid input: {choice}", ephemeral=True)
+        return
+
+    await interaction.response.defer()
+    r = requests.get(f"https://zenquotes.io/api/{choice.lower()}")
+    print(f"Request response: {r.text}")
+    data = r.json()
+    await interaction.followup.send(f"> \"{data[0]['q']}\" - {data[0]['a']}")
 
 bot.run(TOKEN)
