@@ -19,7 +19,7 @@ intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents, status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.watching, name="Type / for commands"))
 TOKEN = os.getenv("TOKEN")
 allowed_user = os.getenv("ALLOWED_USER_ID")
-guild = discord.Object(id=os.getenv("GUILD_ID"))
+guild = discord.Object(id=int(os.getenv("GUILD_ID")))
 print("Bot is starting...")
 
 @bot.event
@@ -127,8 +127,11 @@ async def userinfo(interaction: discord.Interaction, user: discord.Member, hidde
     roles = [role.name for role in user.roles if role.name != "@everyone"]
     embed = discord.Embed(title=f"{user.name}", color=discord.Color.blue())
     embed.add_field(name="ID", value=user.id)
+    embed.add_field(name="Account created", value=user.created_at.strftime("%Y-%m-%d"))
     embed.add_field(name="Joined server", value=user.joined_at.strftime("%Y-%m-%d"))
     embed.add_field(name="Roles", value=", ".join(roles) or "None")
+    embed.set_thumbnail(url=user.avatar.url if user.avatar else user.default_avatar.url)
+    embed.set_footer(text=f"Requested by {interaction.user.name} • {datetime.datetime.now()}")
     if hidden:
         await interaction.response.send_message(embed=embed, ephemeral=True)
     else:
@@ -186,5 +189,34 @@ async def meme(interaction: discord.Interaction, subreddit: str = None, hidden: 
         await interaction.response.send_message(embed=embed, ephemeral=True)
     else:
         await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="duck", description="Get a random duck picture", guild=guild)
+@app_commands.describe(hidden="Hide the command from others")
+async def duck(interaction: discord.Interaction, hidden: bool = False):
+    try:
+        r = requests.get("https://random-d.uk/api/v2/random")
+    except Exception as e:
+        embed = discord.Embed(title="Error", description="Could not fetch duck image. Please try again later.", color=discord.Color.red())
+        embed.add_field(name="Details", value=str(e))
+        embed.set_footer(text=f"{datetime.datetime.now()}")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        return
+    data = r.json()
+    embed = discord.Embed(title="Random Duck", color=discord.Color.blue())
+    embed.set_image(url=data['url'])
+    if hidden:
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+    else:
+        await interaction.response.send_message(embed=embed)
+
+@bot.event
+async def on_message(message):
+    if message.author == bot.user:
+        return
+    if any(word in message.content.lower() for word in ["duck", "quack"]):
+        await message.add_reaction("🦆")
+        await message.channel.send("Quack! 🦆")
+    
+    await bot.process_commands(message)
 
 bot.run(TOKEN)
