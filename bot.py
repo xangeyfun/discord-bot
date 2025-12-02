@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv
 import random
 import requests
+import datetime
 
 load_dotenv()
 
@@ -23,12 +24,11 @@ async def on_ready():
     print(f"Logged in as {bot.user}")
     try:
         synced = await bot.tree.sync()
-        await bot.tree.sync(guild=guild)
         print(f"Synced {len(synced)} slash commands")
     except Exception as e:
         print(f"Error while syncing commands: {e}")
 
-@bot.tree.command(name="help", description="Get help about the bot.", guild=guild)
+@bot.tree.command(name="help", description="Get help about the bot.", )
 async def help(interaction: discord.Interaction):
     help_text = (
         "> **Available Commands:**\n"
@@ -50,7 +50,7 @@ async def ping(interaction: discord.Interaction):
     await interaction.response.send_message(f"> Pong! {round(bot.latency * 1000)}ms :ping_pong:")
 
 
-@bot.tree.command(name="calc", description="Simple calculator", guild=guild)
+@bot.tree.command(name="calc", description="Simple calculator")
 @app_commands.describe(expression="an expression like 5*2+3")
 async def calc(interaction: Interaction, expression: str):
     allowed = "0123456789+-*/(). "
@@ -63,15 +63,15 @@ async def calc(interaction: Interaction, expression: str):
     except Exception as e:
         await interaction.response.send_message(f"> Error evaluating expression: {e}", ephemeral=True)
 
-@bot.tree.command(name="flip", description="Flip a coin.", guild=guild)
+@bot.tree.command(name="flip", description="Flip a coin.")
 async def flip(interaction: Interaction):
     await interaction.response.send_message("> " + random.choice(["Heads!", "Tails!"]))
 
-@bot.tree.command(name="github", description="Find the code on github!", guild=guild)
+@bot.tree.command(name="github", description="Find the code on github!")
 async def github(interaction: discord.Interaction):
     await interaction.response.send_message(f"> Bot made by xangey_fun <@996771607630585856>\n> <https://github.com/xangeyfun/discord-bot>")
 
-@bot.tree.command(name="rps", description="Rock Paper Scissors", guild=guild)
+@bot.tree.command(name="rps", description="Rock Paper Scissors")
 @app_commands.describe(hand="Rock / Paper / Scissors")
 @app_commands.choices(hand=[
     app_commands.Choice(name="Rock", value="Rock"),
@@ -97,7 +97,7 @@ async def rps(interaction: Interaction, hand: str):
 
     await interaction.response.send_message(f"> :robot: {bot_choice.capitalize()}  -  :bust_in_silhouette: {hand.capitalize()}\n> {result}")
 
-@bot.tree.command(name="random", description="Random number generator (float)", guild=guild)
+@bot.tree.command(name="random", description="Random number generator (float)")
 @app_commands.describe(a="Lowest number", b="Highest number")
 async def random_number(interaction: Interaction, a: float, b: float):
     if a >= b:
@@ -106,7 +106,7 @@ async def random_number(interaction: Interaction, a: float, b: float):
     result = random.randint(a, b)
     await interaction.response.send_message(f"> Result: {result}")
 
-@bot.tree.command(name="token", description="See the bot token.", guild=guild)
+@bot.tree.command(name="token", description="See the bot token.")
 async def token(interaction: Interaction):
     if str(interaction.user.id) != str(allowed_user):
         await interaction.response.send_message(f"> You are not allowed to run this command.", ephemeral=True)
@@ -115,7 +115,7 @@ async def token(interaction: Interaction):
         masked = (TOKEN[:16] + "*" * (len(TOKEN) - 8) + TOKEN[-16:]) if TOKEN else "no token set"
         await interaction.response.send_message(f"> The current bot token is\n> `{masked}`", ephemeral=True)
 
-@bot.tree.command(name="userinfo", description="Get info about a user", guild=guild)
+@bot.tree.command(name="userinfo", description="Get info about a user")
 @app_commands.describe(user="The user you want info about")
 async def userinfo(interaction: discord.Interaction, user: discord.Member):
     roles = [role.name for role in user.roles if role.name != "@everyone"]
@@ -125,7 +125,7 @@ async def userinfo(interaction: discord.Interaction, user: discord.Member):
     embed.add_field(name="Roles", value=", ".join(roles) or "None")
     await interaction.response.send_message(embed=embed)
 
-@bot.tree.command(name="quote", description="Get a qoute", guild=guild)
+@bot.tree.command(name="quote", description="Get a qoute")
 @app_commands.describe(choice='"Today" or "Random"')
 @app_commands.choices(choice=[
     app_commands.Choice(name="Today", value="Today"),
@@ -141,5 +141,20 @@ async def qoute(interaction: discord.Interaction, choice: str):
     print(f"Request response: {r.text}")
     data = r.json()
     await interaction.followup.send(f"> \"{data[0]['q']}\" - {data[0]['a']}")
+
+@bot.tree.command(name="meme", description="Get a random meme", )
+@app_commands.describe(subreddit="Subreddit to get meme from (optional)")
+async def meme(interaction: discord.Interaction, subreddit: str = None):
+    await interaction.response.defer()
+    url = f"https://meme-api.com/gimme/{subreddit}" if subreddit else "https://meme-api.com/gimme"
+    r = requests.get(url)
+    if r.status_code != 200:
+        await interaction.followup.send("> Could not fetch meme. Please check the subreddit name.", ephemeral=True)
+        return
+    data = r.json()
+    embed = discord.Embed(title=data['title'], url=data['postLink'], color=discord.Color.green())
+    embed.set_image(url=data['url'])
+    embed.set_footer(text=f"{datetime.datetime.now()} - From r/{data['subreddit']}")
+    await interaction.followup.send(embed=embed)
 
 bot.run(TOKEN)
