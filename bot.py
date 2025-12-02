@@ -25,4 +25,4 @@ async def on_message(message: discord.Message) -> None:
 async def ping(ctx: commands.Context) -> None:
     await ctx.send(f"> Pong! {round(bot.latency * 1000)}ms")
 
-client.run(TOKEN)
+bot.run(TOKEN)
