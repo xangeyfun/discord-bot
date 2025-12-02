@@ -11,7 +11,7 @@ load_dotenv()
 # create bot with intents
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = commands.Bot(command_prefix="!", intents=intents, status=discord.Status.online, activity=discord.Game("Type / for commands"))
 TOKEN = os.getenv("TOKEN")
 GUILD_ID = os.getenv("GUILD")
 guild = discord.Object(id=GUILD_ID)
@@ -27,6 +27,22 @@ async def on_ready():
         print(f"Synced {len(synced)} slash commands")
     except Exception as e:
         print(f"Error while syncing commands: {e}")
+
+@bot.tree.command(name="help", description="Get help about the bot.", guild=guild)
+async def help(interaction: discord.Interaction):
+    help_text = (
+        "> **Available Commands:**\n"
+        "> `/ping` - Test the bot's latency.\n"
+        "> `/calc <expression>` - Simple calculator.\n"
+        "> `/flip` - Flip a coin.\n"
+        "> `/github` - Find the code on GitHub.\n"
+        "> `/rps <hand>` - Play Rock Paper Scissors.\n"
+        "> `/random <a> <b>` - Generate a random number between a and b.\n"
+        "> `/token` - See the bot token (restricted).\n"
+        "> `/userinfo <user>` - Get info about a user.\n"
+        "> `/quote <choice>` - Get a quote (Today or Random).\n"
+    )
+    await interaction.response.send_message(help_text)
 
 # a simple slash command
 @bot.tree.command(name="ping", description="Test the bot's latency.")
