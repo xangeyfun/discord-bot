@@ -6,6 +6,9 @@ from dotenv import load_dotenv
 import random
 import requests
 import datetime
+import time
+
+startup = time.time()
 
 load_dotenv()
 
@@ -23,6 +26,8 @@ async def on_ready():
     try:
         synced = await bot.tree.sync()
         print(f"Synced {len(synced)} slash commands")
+        done = time.time()
+        print(f"Startup time: {done - startup:.2f} seconds")
     except Exception as e:
         print(f"Error while syncing commands: {e}")
 
