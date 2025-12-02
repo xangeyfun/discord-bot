@@ -24,6 +24,7 @@ pip install -r requirements.txt
 ```
 TOKEN=your_bot_token_here
 APPLICATION_ID=your_application_id_here
+GUILD=your_guild_id_here
 ```
 
 4. Run the bot:
