@@ -44,7 +44,6 @@ python3 bot.py
 - `/userinfo` - Get info about a user
 - `/quote` - Get a quote
 - `/meme` - Get a random meme.
-- `/token` - get the bot token (admin only)
 
 ## Requirements
 
