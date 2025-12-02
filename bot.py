@@ -3,6 +3,7 @@ from discord import app_commands, Interaction
 from discord.ext import commands
 import os
 from dotenv import load_dotenv
+import random
 
 load_dotenv()
 
@@ -35,9 +36,17 @@ async def ping(interaction: discord.Interaction):
 async def calc(interaction: Interaction, expression: str):
     allowed = "0123456789+-*/(). "
     if any(c not in allowed for c in expression):
-        await interaction.response.send_message("invalid expression")
+        await interaction.response.send_message("> invalid expression")
         return
     result = eval(expression)
-    await interaction.response.send_message(f"{expression} = {result}")
+    await interaction.response.send_message(f"> {expression} = {result}")
+
+@bot.tree.command(name="flip", description="Flip a coin.", guild=guild)
+async def flip(interaction: Interaction):
+    await interaction.response.send_message("> " + random.choice(["Heads!", "Tails!"]))
+
+@bot.tree.command(name="github", description="Find the code on github!", guild=guild)
+async def github(interaction: discord.Interaction):
+    await interaction.response.send_message(f"> Bot made by xangey_fun <@996771607630585856>\n> <https://github.com/xangeyfun/discord-bot>")
 
 bot.run(TOKEN)
