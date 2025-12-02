@@ -29,9 +29,21 @@ async def on_ready():
 async def ping(interaction: discord.Interaction):
     await interaction.response.send_message(f"> Pong! {round(bot.latency * 1000)}ms")
 
-@bot.tree.command(name="add", description="Add two numbers", guild=guild)
-@app_commands.describe(a="first number", b="second number")
-async def add(interaction: Interaction, a: float, b: float):
-    await interaction.response.send_message(f"{a} + {b} = {a + b}")
+
+@bot.tree.command(name="calc", description="Simple calculator", guild=guild)
+@app_commands.describe(a="first number", o="operator (+ - * /)", b="second number")
+async def calc(interaction: Interaction, a: float, o: str, b: float):
+    if o == "+":
+        result = a + b
+    elif o == "-":
+        result = a - b
+    elif o == "*":
+        result = a * b
+    elif o == "/":
+        result = a / b if b != 0 else "undefined (division by 0)"
+    else:
+        result = "invalid operator"
+
+    await interaction.response.send_message(f"{a} {o} {b} = {result}")
 
 bot.run(TOKEN)
