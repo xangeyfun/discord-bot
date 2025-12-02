@@ -13,6 +13,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 TOKEN = os.getenv("TOKEN")
 GUILD_ID = os.getenv("GUILD")
 guild = discord.Object(id=GUILD_ID)
+allowed_user = os.getenv("ALLOWED_USER_ID")
 
 # when bot is ready
 @bot.event
@@ -76,8 +77,15 @@ async def random_number(interaction: Interaction, a: float, b: float):
     if a >= b:
         await interaction.response.send_message("> First number must be less than the second")
         return
-    result = random.uniform(a, b)
+    result = random.randint(a, b)
     await interaction.response.send_message(f"> Result: {result}")
 
+@bot.tree.command(name="token", description="See the bot token.", guild=guild)
+async def token(interaction: Interaction):
+    if str(interaction.user.id) != str(allowed_user):
+        await interaction.response.send_message(f"> You are not allowed to run this command.", ephemeral=True)
+        return
+    else:
+        await interaction.response.send_message(f"> The current bot token is `{TOKEN}`", ephemeral=True)
 
 bot.run(TOKEN)
