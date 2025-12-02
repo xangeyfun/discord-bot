@@ -76,7 +76,7 @@ async def github(interaction: discord.Interaction):
 @app_commands.choices(hand=[
     app_commands.Choice(name="Rock", value="Rock"),
     app_commands.Choice(name="Paper", value="Paper"),
-    app_commands.Choice(name="Siccors", value="Siccors")
+    app_commands.Choice(name="Sciccors", value="Sciccors")
 ])
 async def rps(interaction: Interaction, hand: str):
     hand = hand.lower()
