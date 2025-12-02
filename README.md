@@ -26,6 +26,7 @@ pip install -r requirements.txt
 TOKEN=your_bot_token_here
 APPLICATION_ID=your_application_id_here
 GUILD=your_guild_id_here
+ALLOWED_USER_ID=your_user_id_here
 ```
 
 4. Run the bot:
@@ -41,6 +42,7 @@ python3 bot.py
 - `/github` - link to the source code
 - `/rps` - Rock Paper Siccors
 - `/random` - Generate a random number
+- `/token` - get the bot token (admin only)
 
 ## Requirements
 
