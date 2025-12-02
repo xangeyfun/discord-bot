@@ -36,15 +36,7 @@ python3 bot.py
 
 ## Commands
 
-- `/ping` - test the bot's latency
-- `/calc` - evaluate a simple expression
-- `/flip` - flip a coin
-- `/github` - link to the source code
-- `/rps` - Rock Paper Siccors
-- `/random` - Generate a random number
-- `/userinfo` - Get info about a user
-- `/quote` - Get a quote
-- `/meme` - Get a random meme.
+Type `/help` while the bot is active to see all commands.
 
 ## Requirements
 
