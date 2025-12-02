@@ -33,6 +33,10 @@ async def ping(interaction: discord.Interaction):
 @bot.tree.command(name="calc", description="Simple calculator", guild=guild)
 @app_commands.describe(expression="an expression like 5*2+3")
 async def calc(interaction: Interaction, expression: str):
+    allowed = "0123456789+-*/(). "
+    if any(c not in allowed for c in expression):
+        await interaction.response.send_message("invalid expression")
+        return
     result = eval(expression)
     await interaction.response.send_message(f"{expression} = {result}")
 
