@@ -34,7 +34,8 @@ async def on_ready():
 @bot.tree.command(name="help", description="Get help about the bot.", )
 async def help(interaction: discord.Interaction):
     help_text = (
-        "> **Available Commands:**\n"
+        "## **Available Commands:**\n"
+        "> **<required>**  |  [optional]\n\n"
         "> `/ping` - Test the bot's latency.\n"
         "> `/calc <expression>` - Simple calculator.\n"
         "> `/flip` - Flip a coin.\n"
@@ -44,6 +45,7 @@ async def help(interaction: discord.Interaction):
         "> `/token` - See the bot token (restricted).\n"
         "> `/userinfo <user>` - Get info about a user.\n"
         "> `/quote <choice>` - Get a quote (Today or Random).\n"
+        "> `/meme [subreddit]` - Get a random meme.\n"
     )
     await interaction.response.send_message(help_text)
 

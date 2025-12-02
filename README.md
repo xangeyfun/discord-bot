@@ -43,6 +43,7 @@ python3 bot.py
 - `/random` - Generate a random number
 - `/userinfo` - Get info about a user
 - `/quote` - Get a quote
+- `/meme` - Get a random meme.
 - `/token` - get the bot token (admin only)
 
 ## Requirements
