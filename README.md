@@ -4,7 +4,7 @@ A simple Discord bot made to learn the discord.py library.
 
 ## Features
 
-- None right now.
+- Ping command to test the bot's latency
 
 ## Setup
 
@@ -32,7 +32,7 @@ python3 bot.py
 
 ## Commands
 
-- None right now.
+- `/ping` test the bot's latency
 
 ## Requirements
 
