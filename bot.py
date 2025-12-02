@@ -93,7 +93,7 @@ async def token(interaction: Interaction):
 @app_commands.describe(user="The user you want info about")
 async def userinfo(interaction: discord.Interaction, user: discord.Member):
     roles = [role.name for role in user.roles if role.name != "@everyone"]
-    embed = discord.Embed(title=f"{user}", color=discord.Color.blue())
+    embed = discord.Embed(title=f"{user.name}", color=discord.Color.blue())
     embed.add_field(name="ID", value=user.id)
     embed.add_field(name="Joined server", value=user.joined_at.strftime("%Y-%m-%d"))
     embed.add_field(name="Roles", value=", ".join(roles) or "None")
