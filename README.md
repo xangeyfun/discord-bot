@@ -40,6 +40,7 @@ python3 bot.py
 - `/flip` - flip a coin
 - `/github` - link to the source code
 - `/rps` - Rock Paper Siccors
+- `/random` - Generate a random number
 
 ## Requirements
 
