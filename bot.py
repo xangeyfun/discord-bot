@@ -240,6 +240,26 @@ async def uptime(interaction: discord.Interaction):
     uptime_str = f"{hours}h {minutes}m {seconds}s"
     await interaction.response.send_message(f"> Uptime: {uptime_str}", ephemeral=True)
 
+@bot.tree.command(name="fact", description="Get a daily fact.", guild=guild)
+@app_commands.describe(hidden="Hide the command from others", choice='"Today" or "Random"')
+@app_commands.choices(choice=[
+    app_commands.Choice(name="Today", value="Today"),
+    app_commands.Choice(name="Random", value="Random")
+])
+async def fact(interaction: discord.Interaction, choice: str, hidden: bool = False):
+    if choice.lower() != "today" and choice.lower() != "random":
+        await interaction.response.send_message(f"> Invalid input: {choice}", ephemeral=True)
+        return
+    try:
+        r = requests.get(f"https://uselessfacts.jsph.pl/{'today' if choice.lower() == 'today' else 'random'}.json?language=en")
+    except Exception as e:
+        await interaction.response.send_message(f"> Could not fetch fact. Please try again later.\nDetails: {e}", ephemeral=True)
+        return
+    data = r.json()
+    if hidden:
+        await interaction.response.send_message(f"> {data['text']}", ephemeral=True)
+    else:
+        await interaction.response.send_message(f"> {data['text']}")
 
 @bot.event
 async def on_message(message):
