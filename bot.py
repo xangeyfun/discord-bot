@@ -20,28 +20,37 @@ bot = commands.Bot(command_prefix="!", intents=intents, status=discord.Status.on
 TOKEN = os.getenv("TOKEN")
 allowed_user = os.getenv("ALLOWED_USER_ID")
 guild = discord.Object(id=int(os.getenv("GUILD_ID")))
-print("Bot is starting...\n")
+print("[DEBUG] Bot is starting...\n")
 
 @bot.event
 async def on_ready():
-    print(f"\nLogged in as {bot.user}")
+    print(f"\n[DEBUG] Logged in as {bot.user}")
     try:
-        print("Syncing commands...")
+        print("[DEBUG] Syncing commands...")
         start_sync = time.time()
         synced = await bot.tree.sync() #guild=guild)
         done = time.time()
     except Exception as e:
-        print(f"Error while syncing commands: {e}")
+        print(f"[ERROR] Error while syncing commands: {e}")
         exit(1)
     total_guilds = len(bot.guilds)
     total_members = sum(guild.member_count for guild in bot.guilds)
     sync_time = f"{done - start_sync:.2f}s"
-    print(f"\n--- Bot is ready! ---")
-    print(f"Invite link: https://discord.com/api/oauth2/authorize?client_id={bot.user.id}&permissions=8&scope=bot%20applications.commands")
-    print(f"Connected to {total_guilds} guilds ({total_members} members)")
-    print(f"Synced {len(synced)} slash commands in {sync_time}")
-    print(f"Startup time: {done - startup:.2f} seconds")
-    print(f"---------------------\n")
+    print(f"\n[DEBUG] --- Bot is ready! ---")
+    print(f"[DEBUG] Invite link: https://discord.com/api/oauth2/authorize?client_id={bot.user.id}&permissions=8&scope=bot%20applications.commands")
+    print(f"[DEBUG] Connected to {total_guilds} guilds ({total_members} members)")
+    print(f"[DEBUG] Synced {len(synced)} slash commands in {sync_time}")
+    print(f"[DEBUG] Startup time: {done - startup:.2f} seconds")
+    print(f"[DEBUG] ---------------------\n")
+
+@bot.event
+async def on_interaction(interaction: discord.Interaction):
+    if interaction.type == discord.InteractionType.application_command:
+        guild_name = interaction.guild.name if interaction.guild else "DM"
+        channel_name = getattr(interaction.channel, 'name', 'Unknown') if interaction.channel else "Unknown"
+        user_name = interaction.user.name if interaction.user else "Unknown"
+        command_name = interaction.command.name if interaction.command else "Unknown"
+        print(f"[COMMAND] /{command_name} used by {user_name} in {guild_name}/#{channel_name}")
 
 @bot.tree.command(name="help", description="Get help about the bot.") # , guild=guild)
 async def help(interaction: discord.Interaction):
@@ -163,7 +172,6 @@ async def quote(interaction: discord.Interaction, choice: str, hidden: bool = Fa
     except Exception as e:
         await interaction.response.send_message(f"> Could not fetch quote. Please try again later.\nDetails: {e}", ephemeral=True)
         return
-    print(f"Request response: {r.text}")
     data = r.json()
     if hidden:
         await interaction.response.send_message(f"> \"{data[0]['q']}\" - {data[0]['a']}", ephemeral=True)
