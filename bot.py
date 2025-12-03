@@ -245,9 +245,15 @@ async def uptime(interaction: discord.Interaction):
 async def on_message(message):
     if message.author == bot.user:
         return
+    
     if any(word in message.content.lower() for word in ["duck", "quack"]):
         await message.add_reaction("🦆")
         await message.channel.send("Quack! 🦆")
+        return
+    
+    if isinstance(message.channel, discord.DMChannel):
+        await message.channel.send("Hello! I'm a bot. You cannot interact with me via DMs. Please use me in a server.")
+        return
     
     await bot.process_commands(message)
 
