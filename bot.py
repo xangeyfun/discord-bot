@@ -50,6 +50,8 @@ async def help(interaction: discord.Interaction):
         "> `/quote <str>` - Get a quote (Today or Random).\n"
         "> `/meme [str]` - Get a random meme.\n"
         "> `/duck` - Get a random duck picture.\n"
+        "> `/fox` - Get a random fox picture.\n"
+        "> `/uptime` - Check the bot's uptime.\n"
     )
     await interaction.response.send_message(help_text, ephemeral=True)
 
