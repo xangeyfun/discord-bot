@@ -20,22 +20,30 @@ bot = commands.Bot(command_prefix="!", intents=intents, status=discord.Status.on
 TOKEN = os.getenv("TOKEN")
 allowed_user = os.getenv("ALLOWED_USER_ID")
 guild = discord.Object(id=int(os.getenv("GUILD_ID")))
-print("Bot is starting...")
+print("Bot is starting...\n")
 
 @bot.event
 async def on_ready():
-    print(f"Logged in as {bot.user}")
+    print(f"\nLogged in as {bot.user}")
     try:
         print("Syncing commands...")
-        synced = await bot.tree.sync(guild=guild)
-        print(f"Synced {len(synced)} slash commands")
+        start_sync = time.time()
+        synced = await bot.tree.sync() #guild=guild)
         done = time.time()
-        print(f"Startup time: {done - startup:.2f} seconds")
     except Exception as e:
         print(f"Error while syncing commands: {e}")
         exit(1)
+    total_guilds = len(bot.guilds)
+    total_members = sum(guild.member_count for guild in bot.guilds)
+    sync_time = f"{done - start_sync:.2f}s"
+    print(f"\n--- Bot is ready! ---")
+    print(f"Invite link: https://discord.com/api/oauth2/authorize?client_id={bot.user.id}&permissions=8&scope=bot%20applications.commands")
+    print(f"Connected to {total_guilds} guilds ({total_members} members)")
+    print(f"Synced {len(synced)} slash commands in {sync_time}")
+    print(f"Startup time: {done - startup:.2f} seconds")
+    print(f"---------------------\n")
 
-@bot.tree.command(name="help", description="Get help about the bot.", guild=guild)
+@bot.tree.command(name="help", description="Get help about the bot.") # , guild=guild)
 async def help(interaction: discord.Interaction):
     help_text = (
         "## **Available Commands:**\n"
@@ -55,11 +63,11 @@ async def help(interaction: discord.Interaction):
     )
     await interaction.response.send_message(help_text, ephemeral=True)
 
-@bot.tree.command(name="ping", description="Test the bot's latency.", guild=guild)
+@bot.tree.command(name="ping", description="Test the bot's latency.") # , guild=guild)
 async def ping(interaction: discord.Interaction):
     await interaction.response.send_message(f"> Pong! {round(bot.latency * 1000)}ms :ping_pong:", ephemeral=True)
 
-@bot.tree.command(name="calc", description="Simple calculator", guild=guild)
+@bot.tree.command(name="calc", description="Simple calculator") # , guild=guild)
 @app_commands.describe(expression="an expression like 5*2+3")
 async def calc(interaction: Interaction, expression: str):
     allowed = "0123456789+-*/(). "
@@ -72,7 +80,7 @@ async def calc(interaction: Interaction, expression: str):
     except Exception as e:
         await interaction.response.send_message(f"> Error evaluating expression: {e}", ephemeral=True)
 
-@bot.tree.command(name="flip", description="Flip a coin.", guild=guild)
+@bot.tree.command(name="flip", description="Flip a coin.") # , guild=guild)
 @app_commands.describe(hidden="Hide the command from others")
 async def flip(interaction: Interaction, hidden: bool = False):
     if hidden:
@@ -80,11 +88,11 @@ async def flip(interaction: Interaction, hidden: bool = False):
     else:
         await interaction.response.send_message("> " + random.choice(["Heads!", "Tails!"]))
 
-@bot.tree.command(name="github", description="Find the code on github!", guild=guild)
+@bot.tree.command(name="github", description="Find the code on github!") # , guild=guild)
 async def github(interaction: discord.Interaction):
     await interaction.response.send_message(f"> Bot made by xangey_fun <@996771607630585856>\n> <https://github.com/xangeyfun/discord-bot>")
 
-@bot.tree.command(name="rps", description="Rock Paper Scissors", guild=guild)
+@bot.tree.command(name="rps", description="Rock Paper Scissors") # , guild=guild)
 @app_commands.describe(hand="Rock / Paper / Scissors", hidden="Hide the command from others")
 @app_commands.choices(hand=[
     app_commands.Choice(name="Rock", value="Rock"),
@@ -112,7 +120,7 @@ async def rps(interaction: Interaction, hand: str, hidden: bool = False):
     else:
         await interaction.response.send_message(f"> :robot: {bot_choice.capitalize()}  -  :bust_in_silhouette: {hand.capitalize()}\n> {result}")
 
-@bot.tree.command(name="random", description="Random number generator", guild=guild)
+@bot.tree.command(name="random", description="Random number generator") # , guild=guild)
 @app_commands.describe(a="Lowest number", b="Highest number", hidden="Hide the command from others")
 async def random_number(interaction: Interaction, a: float, b: float, hidden: bool = False):
     if a >= b:
@@ -124,7 +132,7 @@ async def random_number(interaction: Interaction, a: float, b: float, hidden: bo
     else:
         await interaction.response.send_message(f"> Result: {result}")
 
-@bot.tree.command(name="userinfo", description="Get info about a user", guild=guild)
+@bot.tree.command(name="userinfo", description="Get info about a user") # , guild=guild)
 @app_commands.describe(user="The user you want info about", hidden="Hide the command from others")
 async def userinfo(interaction: discord.Interaction, user: discord.Member, hidden: bool = False):
     roles = [role.name for role in user.roles if role.name != "@everyone"]
@@ -140,7 +148,7 @@ async def userinfo(interaction: discord.Interaction, user: discord.Member, hidde
     else:
         await interaction.response.send_message(embed=embed)
 
-@bot.tree.command(name="quote", description="Get a quote", guild=guild)
+@bot.tree.command(name="quote", description="Get a quote") # , guild=guild)
 @app_commands.describe(choice='"Today" or "Random"', hidden="Hide the command from others")
 @app_commands.choices(choice=[
     app_commands.Choice(name="Today", value="Today"),
@@ -162,7 +170,7 @@ async def quote(interaction: discord.Interaction, choice: str, hidden: bool = Fa
     else:
         await interaction.response.send_message(f"> \"{data[0]['q']}\" - {data[0]['a']}")
 
-@bot.tree.command(name="meme", description="Get a random meme", guild=guild)
+@bot.tree.command(name="meme", description="Get a random meme") # , guild=guild)
 @app_commands.describe(subreddit="Subreddit to get meme from (optional)", hidden="Hide the command from others")
 async def meme(interaction: discord.Interaction, subreddit: str = None, hidden: bool = False):
     if subreddit == "Examples":
@@ -193,7 +201,7 @@ async def meme(interaction: discord.Interaction, subreddit: str = None, hidden: 
     else:
         await interaction.response.send_message(embed=embed)
 
-@bot.tree.command(name="duck", description="Get a random duck picture", guild=guild)
+@bot.tree.command(name="duck", description="Get a random duck picture") # , guild=guild)
 @app_commands.describe(hidden="Hide the command from others")
 async def duck(interaction: discord.Interaction, hidden: bool = False):
     try:
@@ -212,7 +220,7 @@ async def duck(interaction: discord.Interaction, hidden: bool = False):
     else:
         await interaction.response.send_message(embed=embed)
 
-@bot.tree.command(name="fox", description="Get a random fox picture", guild=guild)
+@bot.tree.command(name="fox", description="Get a random fox picture") # , guild=guild)
 @app_commands.describe(hidden="Hide the command from others")
 async def fox(interaction: discord.Interaction, hidden: bool = False):
     try:
@@ -231,7 +239,7 @@ async def fox(interaction: discord.Interaction, hidden: bool = False):
     else:
         await interaction.response.send_message(embed=embed)
 
-@bot.tree.command(name="uptime", description="Check the bot's uptime.", guild=guild)
+@bot.tree.command(name="uptime", description="Check the bot's uptime.") # , guild=guild)
 async def uptime(interaction: discord.Interaction):
     current_time = time.time()
     uptime_seconds = int(current_time - startup)
@@ -240,7 +248,7 @@ async def uptime(interaction: discord.Interaction):
     uptime_str = f"{hours}h {minutes}m {seconds}s"
     await interaction.response.send_message(f"> Uptime: {uptime_str}", ephemeral=True)
 
-@bot.tree.command(name="fact", description="Get a daily fact.", guild=guild)
+@bot.tree.command(name="fact", description="Get a daily fact.")# )# , guild=guild)
 @app_commands.describe(hidden="Hide the command from others", choice='"Today" or "Random"')
 @app_commands.choices(choice=[
     app_commands.Choice(name="Today", value="Today"),
@@ -272,7 +280,7 @@ async def on_message(message):
         return
     
     if isinstance(message.channel, discord.DMChannel):
-        await message.channel.send("Hello! I'm a bot. You cannot interact with me via DMs. Please use me in a server.")
+        await message.channel.send("Hello! I'm a bot. Please use slash commands to interact with me. Type /help to see available commands.")
         return
     
     await bot.process_commands(message)
