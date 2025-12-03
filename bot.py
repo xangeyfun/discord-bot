@@ -50,9 +50,19 @@ async def on_ready():
 async def on_interaction(interaction: discord.Interaction):
     if interaction.type == discord.InteractionType.application_command:
         guild_name = interaction.guild.name if interaction.guild else "DM"
-        channel_name = getattr(interaction.channel, 'name', 'Unknown') if interaction.channel else "Unknown"
+        channel_name = getattr(interaction.channel, 'name', 'Unknown') if interaction.channel else ""
+        if channel_name != "Unknown":
+            channel_name = f"/#{channel_name}"
+        else:
+            channel_name = ""
         user_name = interaction.user.name if interaction.user else "Unknown"
         command_name = interaction.command.name if interaction.command else "Unknown"
+        user_id = interaction.user.id if interaction.user else "Unknown"
+        guild_id = interaction.guild.id if interaction.guild else "DM"
+        if guild_id != "DM":
+            guild_id = f", guild_id: {guild_id}"
+        else:
+            guild_id = ""
 
         options_str = ""
         if interaction.data and "options" in interaction.data:
@@ -62,7 +72,7 @@ async def on_interaction(interaction: discord.Interaction):
                 parts.append(f"{opt['name']}:{opt['value']}")
             options_str = " " + " ".join(parts) if parts else ""
 
-        print(f"{date()} COMMAND '/{command_name}{options_str}' used by {user_name} in {guild_name}/#{channel_name}")
+        print(f"{date()} COMMAND '/{command_name}{options_str}' used by '{user_name}' in '{guild_name}{channel_name}' (user_id: {user_id}{guild_id})")
 
 
 @bot.tree.command(name="help", description="Get help about the bot.") # , guild=guild)
