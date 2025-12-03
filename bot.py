@@ -92,6 +92,8 @@ async def help(interaction: discord.Interaction):
         "> `/duck` - Get a random duck picture.\n"
         "> `/fox` - Get a random fox picture.\n"
         "> `/uptime` - Check the bot's uptime.\n"
+        "> `/fact <str>` - Get a daily fact.\n"
+        "> `/dog` - Get a random dog picture.\n"
     )
     await interaction.response.send_message(help_text, ephemeral=True)
 
@@ -192,6 +194,7 @@ async def quote(interaction: discord.Interaction, choice: str, hidden: bool = Fa
         return
     try:
         r = requests.get(f"https://zenquotes.io/api/{choice.lower()}")
+        print(f"{date()} DEBUG  Quote API response status: {r.status_code}")
     except Exception as e:
         await interaction.response.send_message(f"> Could not fetch quote. Please try again later.\nDetails: {e}", ephemeral=True)
         return
@@ -204,13 +207,10 @@ async def quote(interaction: discord.Interaction, choice: str, hidden: bool = Fa
 @bot.tree.command(name="meme", description="Get a random meme") # , guild=guild)
 @app_commands.describe(subreddit="Subreddit to get meme from (optional)", hidden="Hide the command from others")
 async def meme(interaction: discord.Interaction, subreddit: str = None, hidden: bool = False):
-    if subreddit == "Examples":
-        embed = discord.Embed(title="Meme Subreddit Examples", description="Here are some example subreddits you can use:\n- memes\n- dankmemes\n- wholesomememes\n- me_irl\n- linuxmemes\n- programmerhumor", color=discord.Color.blue())
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-        return
     url = f"https://meme-api.com/gimme/{subreddit}" if subreddit else "https://meme-api.com/gimme"
     try:
         r = requests.get(url)
+        print(f"{date()} DEBUG  Meme API response status: {r.status_code}")
     except Exception as e:
         embed = discord.Embed(title="Error", description="Could not fetch meme. Please try again later.", color=discord.Color.red())
         embed.add_field(name="Details", value=str(e))
@@ -237,6 +237,7 @@ async def meme(interaction: discord.Interaction, subreddit: str = None, hidden: 
 async def duck(interaction: discord.Interaction, hidden: bool = False):
     try:
         r = requests.get("https://random-d.uk/api/v2/random")
+        print(f"{date()} DEBUG  Duck API response status: {r.status_code}")
     except Exception as e:
         embed = discord.Embed(title="Error", description="Could not fetch duck image. Please try again later.", color=discord.Color.red())
         embed.add_field(name="Details", value=str(e))
@@ -256,6 +257,7 @@ async def duck(interaction: discord.Interaction, hidden: bool = False):
 async def fox(interaction: discord.Interaction, hidden: bool = False):
     try:
         r = requests.get("https://randomfox.ca/floof/")
+        print(f"{date()} DEBUG  Fox API response status: {r.status_code}")
     except Exception as e:
         embed = discord.Embed(title="Error", description="Could not fetch fox image. Please try again later.", color=discord.Color.red())
         embed.add_field(name="Details", value=str(e))
@@ -291,6 +293,7 @@ async def fact(interaction: discord.Interaction, choice: str, hidden: bool = Fal
         return
     try:
         r = requests.get(f"https://uselessfacts.jsph.pl/{'today' if choice.lower() == 'today' else 'random'}.json?language=en")
+        print(f"{date()} DEBUG  Fact API response status: {r.status_code}")
     except Exception as e:
         await interaction.response.send_message(f"> Could not fetch fact. Please try again later.\nDetails: {e}", ephemeral=True)
         return
@@ -299,6 +302,26 @@ async def fact(interaction: discord.Interaction, choice: str, hidden: bool = Fal
         await interaction.response.send_message(f"> {data['text']}", ephemeral=True)
     else:
         await interaction.response.send_message(f"> {data['text']}")
+
+@bot.tree.command(name="dog", description="Get a random dog picture") # , guild=guild)
+@app_commands.describe(hidden="Hide the command from others")
+async def dog(interaction: discord.Interaction, hidden: bool = False):
+    try:
+        r = requests.get("https://random.dog/woof.json")
+        print(f"{date()} DEBUG  Dog API response status: {r.status_code}")
+    except Exception as e:
+        embed = discord.Embed(title="Error", description="Could not fetch dog image. Please try again later.", color=discord.Color.red())
+        embed.add_field(name="Details", value=str(e))
+        embed.set_footer(text=f"{datetime.datetime.now()}")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        return
+    data = r.json()
+    embed = discord.Embed(title="Random Dog", color=discord.Color.green())
+    embed.set_image(url=data['url'])
+    if hidden:
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+    else:
+        await interaction.response.send_message(embed=embed)
 
 @bot.event
 async def on_message(message):
