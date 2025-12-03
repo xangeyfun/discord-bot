@@ -329,6 +329,15 @@ async def dog(interaction: discord.Interaction, hidden: bool = False):
     else:
         await interaction.followup.send(embed=embed)
 
+@bot.tree.command(name="shutdown", description="Shut down the bot (owner only).") # , guild=guild)
+async def shutdown(interaction: discord.Interaction):
+    if str(interaction.user.id) != allowed_user:
+        await interaction.response.send_message("> You do not have permission to use this command.", ephemeral=True)
+        return
+    await interaction.response.send_message("> Shutting down...", ephemeral=True)
+    print(f"{date()} DEBUG  Shutdown command issued by {interaction.user.name} (ID: {interaction.user.id})")
+    await bot.close()
+
 @bot.event
 async def on_message(message):
     if message.author == bot.user:
