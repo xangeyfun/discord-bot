@@ -9,7 +9,6 @@ import datetime
 import time
 import ast
 
-# Track startup time for performance metrics
 startup = time.time()
 
 load_dotenv()
@@ -210,6 +209,35 @@ async def duck(interaction: discord.Interaction, hidden: bool = False):
         await interaction.response.send_message(embed=embed, ephemeral=True)
     else:
         await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="fox", description="Get a random fox picture", guild=guild)
+@app_commands.describe(hidden="Hide the command from others")
+async def fox(interaction: discord.Interaction, hidden: bool = False):
+    try:
+        r = requests.get("https://randomfox.ca/floof/")
+    except Exception as e:
+        embed = discord.Embed(title="Error", description="Could not fetch fox image. Please try again later.", color=discord.Color.red())
+        embed.add_field(name="Details", value=str(e))
+        embed.set_footer(text=f"{datetime.datetime.now()}")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        return
+    data = r.json()
+    embed = discord.Embed(title="Random Fox", color=discord.Color.orange())
+    embed.set_image(url=data['image'])
+    if hidden:
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+    else:
+        await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="uptime", description="Check the bot's uptime.", guild=guild)
+async def uptime(interaction: discord.Interaction):
+    current_time = time.time()
+    uptime_seconds = int(current_time - startup)
+    hours, remainder = divmod(uptime_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    uptime_str = f"{hours}h {minutes}m {seconds}s"
+    await interaction.response.send_message(f"> Uptime: {uptime_str}", ephemeral=True)
+
 
 @bot.event
 async def on_message(message):
