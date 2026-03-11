@@ -20,7 +20,8 @@ bot = commands.Bot(command_prefix="!", intents=intents, status=discord.Status.on
 TOKEN = os.getenv("TOKEN")
 allowed_user = os.getenv("ALLOWED_USER_ID")
 guild = discord.Object(id=int(os.getenv("GUILD_ID")))
-
+COOLDOWN = 30
+last_xp = {}
 LEVEL_ROLES = {
     1: 1203672643413221397, # cool guy role
     3: 1217379957412593695, # GIF perms
@@ -347,17 +348,23 @@ async def shutdown(interaction: discord.Interaction):
     await bot.close()
 
 @bot.tree.command(name="level", description="Check your server level")
-async def level(interaction: discord.Interaction, hidden: bool = False):
+async def level(interaction: discord.Interaction, hidden: bool = False, user: discord.Member | None = None):
     await interaction.response.defer(ephemeral=hidden)
+    if not interaction.guild:
+        await interaction.followup.send("This command only works in servers.", ephemeral=True)
+        return
+
+    user = user or interaction.user # type: ignore
+    
     try:
-        with open(f"data/{interaction.guild.id}/{interaction.user.id}.json", "r") as f:
+        with open(f"data/{interaction.guild.id}/{user.id}.json", "r") as f: # type: ignore
             data = json.load(f)
     except FileNotFoundError:
-        await interaction.followup.send("Your data file was not found! Try sending a message to create one.", ephemeral=hidden)
+        await interaction.followup.send(f"{user.display_name}'s data file was not found! Try sending a message to create one.", ephemeral=hidden) # type: ignore
         return
     filled_blocks = round(data["progress"] / data["out_of"] * 20)
     bar = f"{'█'*filled_blocks:<20}".replace(" ", "░")
-    await interaction.followup.send(f"You are level {data['level']}\n{bar} {data['progress']}/{data['out_of']} XP")
+    await interaction.followup.send(f"**{user.mention}** is level {data['level']} ({data['progress']}/{data['out_of']} XP)\n[{bar}] {data['progress'] / data['out_of'] * 100:.1f}%") # type: ignore
 
 @bot.event
 async def on_message(message):
@@ -395,11 +402,19 @@ async def on_message(message):
     with open(path, "r") as f:
         data = json.load(f)
 
-    data["progress"] += 5
+    now = time.time()
+
+    if message.author.id in last_xp:
+        if now - last_xp[user_id] < COOLDOWN:
+            return
+
+    data["progress"] += random.randint(1, 15)
+    last_xp[user_id] = now
     data["last_message"] = str(datetime.datetime.now())
     if data["progress"] >= data["out_of"]:
         data["progress"] = 0
         data["level"] += 1
+        data["out_of"] = int(100 + data["level"] * 1.2)
 
         level = data["level"]
 
