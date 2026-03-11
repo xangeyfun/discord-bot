@@ -16,10 +16,11 @@ load_dotenv()
 # create bot with intents
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents, status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.watching, name="Type / for commands"))
 TOKEN = os.getenv("TOKEN")
 allowed_user = os.getenv("ALLOWED_USER_ID")
-guild = discord.Object(id=int(os.getenv("GUILD_ID")))
+guild = discord.Object(id=int(os.getenv("GUILD_ID") or "0"))
 COOLDOWN = 30
 last_xp = {}
 LEVEL_ROLES = {
@@ -46,7 +47,7 @@ async def on_ready():
         print(f"{date()} ERROR  Error while syncing commands: {e}")
         exit(1)
     total_guilds = len(bot.guilds)
-    total_members = sum(guild.member_count for guild in bot.guilds)
+    total_members = sum(guild.member_count or 0 for guild in bot.guilds)
     sync_time = f"{done - start_sync:.2f}s"
     print(f"\n{date()} DEBUG  --- Bot is ready! ---")
     print(f"{date()} DEBUG  Invite link: https://discord.com/api/oauth2/authorize?client_id={bot.user.id}&permissions=8&scope=bot%20applications.commands")
@@ -78,7 +79,7 @@ async def on_interaction(interaction: discord.Interaction):
             options = interaction.data["options"]
             parts = []
             for opt in options:
-                parts.append(f"{opt['name']}:{opt['value']}")
+                parts.append(f"{opt['name']}:{opt.get('value', 'N/A')}")
             options_str = " " + " ".join(parts) if parts else ""
 
         print(f"{date()} COMMAND '/{command_name}{options_str}' used by '{user_name}' in '{guild_name}{channel_name}' (user_id: {user_id}{guild_id})")
@@ -165,7 +166,7 @@ async def rps(interaction: Interaction, hand: str, hidden: bool = False):
 
 @bot.tree.command(name="random", description="Random number generator") # , guild=guild)
 @app_commands.describe(a="Lowest number", b="Highest number", hidden="Hide the command from others")
-async def random_number(interaction: Interaction, a: float, b: float, hidden: bool = False):
+async def random_number(interaction: Interaction, a: int, b: int, hidden: bool = False):
     if a >= b:
         await interaction.response.send_message("> First number must be less than the second", ephemeral=True)
         return
@@ -181,8 +182,8 @@ async def userinfo(interaction: discord.Interaction, user: discord.Member, hidde
     roles = [role.name for role in user.roles if role.name != "@everyone"]
     embed = discord.Embed(title=f"{user.name}", color=discord.Color.blue())
     embed.add_field(name="ID", value=user.id)
-    embed.add_field(name="Account created", value=user.created_at.strftime("%Y-%m-%d"))
-    embed.add_field(name="Joined server", value=user.joined_at.strftime("%Y-%m-%d"))
+    embed.add_field(name="Account created", value=user.created_at.strftime("%Y-%m-%d") if user.created_at else "Unknown")
+    embed.add_field(name="Joined server", value=user.joined_at.strftime("%Y-%m-%d") if user.joined_at else "Unknown")
     embed.add_field(name="Roles", value=", ".join(roles) or "None")
     embed.set_thumbnail(url=user.avatar.url if user.avatar else user.default_avatar.url)
     embed.set_footer(text=f"Requested by {interaction.user.name} • {datetime.datetime.now()}")
@@ -216,7 +217,7 @@ async def quote(interaction: discord.Interaction, choice: str, hidden: bool = Fa
 
 @bot.tree.command(name="meme", description="Get a random meme") # , guild=guild)
 @app_commands.describe(subreddit="Subreddit to get meme from (optional)", hidden="Hide the command from others")
-async def meme(interaction: discord.Interaction, subreddit: str = None, hidden: bool = False):
+async def meme(interaction: discord.Interaction, subreddit: str | None = None, hidden: bool = False):
     await interaction.response.defer(ephemeral=hidden)
     url = f"https://meme-api.com/gimme/{subreddit}" if subreddit else "https://meme-api.com/gimme"
     try:
@@ -384,6 +385,9 @@ async def on_message(message):
         )
         return
 
+    if len(message.content) < 5:
+        return
+
     guild_id = message.guild.id
     user_id = message.author.id
 
@@ -393,6 +397,9 @@ async def on_message(message):
     if not os.path.exists(path):
         with open(path, "w") as f:
             json.dump({
+                "user_id": message.author.id,
+                "display_name": message.author.display_name,
+                "username": message.author.name,
                 "level": 0,
                 "progress": 0,
                 "out_of": 100,
@@ -418,9 +425,12 @@ async def on_message(message):
 
         level = data["level"]
 
+        if message.guild.id != 1203657476306894868:
+            return
+
         level_channel = bot.get_channel(1450192627478564916)
 
-        if level_channel:
+        if level_channel and isinstance(level_channel, discord.TextChannel):
             await level_channel.send(
                 f"{message.author.mention} reached **level {level}**! 🎉"
             )
@@ -432,7 +442,7 @@ async def on_message(message):
             if role:
                 await message.author.add_roles(role)
 
-                if level_channel:
+                if level_channel and isinstance(level_channel, discord.TextChannel):
                     await level_channel.send(
                         f"{message.author.mention} unlocked **{role.name}**!"
                     )
