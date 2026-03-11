@@ -369,7 +369,7 @@ async def level(interaction: discord.Interaction, hidden: bool = False, user: di
         return
     filled_blocks = round(data["progress"] / data["out_of"] * 20)
     bar = f"{'█'*filled_blocks:<20}".replace(" ", "░")
-    await interaction.followup.send(f"**{user.mention}** is level {data['level']} ({data['progress']}/{data['out_of']} XP)\n[{bar}] {data['progress'] / data['out_of'] * 100:.1f}%") # type: ignore
+    await interaction.followup.send(f"> **{user.mention}** is level {data['level']} ({data['progress']}/{data['out_of']} XP)\n> [{bar}] {data['progress'] / data['out_of'] * 100:.1f}%\n> {data['total_xp']} total XP | {data['total_messages_xp']} messages counted for XP (out of {data['total_messages']} total messages)", allowed_mentions=discord.AllowedMentions(users=False)) # type: ignore
 
 @bot.event
 async def on_message(message):
@@ -389,9 +389,6 @@ async def on_message(message):
         )
         return
 
-    if len(message.content) < 5:
-        return
-
     guild_id = message.guild.id
     user_id = message.author.id
 
@@ -409,37 +406,48 @@ async def on_message(message):
                 "level": 0,
                 "progress": 0,
                 "out_of": 100,
-                "last_message": ""
+                "last_message": "",
+                "total_messages": 0,
+                "total_messages_xp": 0,
+                "total_xp": 0,
             }, f, indent=2)
 
     with open(path, "r") as f:
         data = json.load(f)
 
     now = time.time()
-
+    data["total_messages"] += 1
+    if len(message.content) < 5:
+        with open(path, "w") as f:
+            json.dump(data, f, indent=2)
+        return
     if message.author.id in last_xp:
         if now - last_xp[user_id] < COOLDOWN:
+            with open(path, "w") as f:
+                json.dump(data, f, indent=2)
             return
-
-    data["progress"] += random.randint(1, 15)
+    xp = random.randint(1, 15)
+    data["progress"] += xp
+    data["total_xp"] += xp
+    data["total_messages_xp"] += 1
     last_xp[user_id] = now
     data["last_message"] = str(datetime.datetime.now())
     if data["progress"] >= data["out_of"]:
         data["progress"] = 0
         data["level"] += 1
-        data["out_of"] = int(100 + data["level"] * 1.2)
+        data["out_of"] = int(100 + data["level"] * 20)
 
         level = data["level"]
 
         if message.guild.id != 1203657476306894868:
+            with open(path, "w") as f:
+                json.dump(data, f, indent=2)
             return
 
         level_channel = bot.get_channel(1450192627478564916)
 
         if level_channel and isinstance(level_channel, discord.TextChannel):
-            await level_channel.send(
-                f"{message.author.mention} reached **level {level}**! 🎉"
-            )
+            await level_channel.send(f"🎊 {message.author.mention} reached **Level {level}**! {level*'⭐'}")
 
         if level in LEVEL_ROLES:
             role_id = LEVEL_ROLES[level]
@@ -449,9 +457,7 @@ async def on_message(message):
                 await message.author.add_roles(role)
 
                 if level_channel and isinstance(level_channel, discord.TextChannel):
-                    await level_channel.send(
-                        f"{message.author.mention} unlocked **{role.name}**!"
-                    )
+                    await level_channel.send(f"🎖️ Congrats {message.author.mention}! You've earned the **`{role.name}`** role!")
 
     with open(path, "w") as f:
         json.dump(data, f, indent=2)
