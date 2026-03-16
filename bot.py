@@ -188,6 +188,9 @@ async def random_number(interaction: Interaction, a: int, b: int, hidden: bool =
 @bot.tree.command(name="userinfo", description="Get info about a user") #, guild=guild)
 @app_commands.describe(user="The user you want info about", hidden="Hide the command from others")
 async def userinfo(interaction: discord.Interaction, user: discord.Member, hidden: bool = False):
+    if not interaction.guild:
+        await interaction.response.send_message("This command only works in servers.", ephemeral=True)
+        return
     roles = [role.name for role in user.roles if role.name != "@everyone"]
     embed = discord.Embed(title=f"{user.name}", color=discord.Color.blue())
     embed.add_field(name="ID", value=user.id)
@@ -358,28 +361,90 @@ async def shutdown(interaction: discord.Interaction):
     await bot.close()
 
 @bot.tree.command(name="level", description="Check your server level") #, guild=guild)
+@app_commands.describe(hidden="Hide the command from others", user='Select a user to view their level')
 async def level(interaction: discord.Interaction, hidden: bool = False, user: discord.Member | None = None):
-    await interaction.response.defer(ephemeral=hidden)
     if not interaction.guild:
         await interaction.followup.send("This command only works in servers.", ephemeral=True)
         return
+
+    await interaction.response.defer(ephemeral=hidden)
 
     user = user or interaction.user # type: ignore
 
     try:
         conn = get_db()
         cur = conn.cursor()
-        data = cur.execute("SELECT * FROM users WHERE guild_id=? AND user_id=?", (interaction.guild.id, interaction.user.id)).fetchone()
+        data = cur.execute("SELECT * FROM users WHERE guild_id=? AND user_id=?", (interaction.guild.id, user.id)).fetchone()
         if not data:
             await interaction.followup.send(f"{user.display_name}'s data file was not found! Try sending a message to create one.", ephemeral=hidden) # type: ignore
             conn.close()
             return
-    except Exception:
+    except Exception as e:
+        await interaction.followup.send(f"Something went wrong... Please DM <@996771607630585856> about this\n> {e}", ephemeral=hidden, allowed_mentions=discord.AllowedMentions(users=False))
+        conn.close()
         return
     filled_blocks = round(data["progress"] / data["out_of"] * 20)
     bar = f"{'█'*filled_blocks:<20}".replace(" ", "░")
     await interaction.followup.send(f"**{user.mention} is level {data['level']}** ({data['progress']}/{data['out_of']} XP)\n> [{bar}] {data['progress'] / data['out_of'] * 100:.1f}%\n> {data['total_xp']} total XP | {data['total_messages_xp']} messages counted for XP (out of {data['total_messages']} total messages)", allowed_mentions=discord.AllowedMentions(users=False)) # type: ignore
 
+@bot.tree.command(name="leaderboard", description="Check the server level leaderboard") #, guild=guild)
+@app_commands.describe(hidden="Hide the command from others", sort='What to sort by')
+@app_commands.choices(
+    sort=[
+        app_commands.Choice(name="Level", value="Level"),
+        app_commands.Choice(name="Total XP", value="Total XP"),
+        app_commands.Choice(name="Total Messages", value="Total Messages")
+    ]
+)
+async def fact(interaction: discord.Interaction, sort: str, hidden: bool = False):
+    await interaction.response.defer(ephemeral=hidden)
+    if not interaction.guild:
+        await interaction.followup.send("This command only works in servers.", ephemeral=True)
+        return
+    
+    conn = get_db()
+    cur = conn.cursor()
+
+    try:
+        if sort == "Level":
+            leaderboad = cur.execute(f"SELECT username, level FROM users WHERE guild_id=? ORDER BY level DESC LIMIT 10", (interaction.guild.id,)).fetchall()
+        if sort == "Total XP":
+            leaderboad = cur.execute(f"SELECT username, total_xp FROM users WHERE guild_id=? ORDER BY total_xp DESC LIMIT 10", (interaction.guild.id,)).fetchall()
+        if sort == "Total Messages":
+            leaderboad = cur.execute(f"SELECT username, total_messages FROM users WHERE guild_id=? ORDER BY total_messages DESC LIMIT 10", (interaction.guild.id,)).fetchall()
+
+    except Exception as e:
+        await interaction.followup.send(f"Something went wrong... Please DM <@996771607630585856> about this\n> {e}", ephemeral=hidden, allowed_mentions=discord.AllowedMentions(users=False))
+        conn.close()
+        return
+
+    embed = discord.Embed(
+        title=f"🏆 {sort} Leaderboard",
+        color=discord.Color(0x7128fc)
+    )
+
+    for i, row in enumerate(leaderboad):
+        username, level = row[0], row[1]
+
+        # top 3 emojis
+        if i == 0:
+            rank = "🥇"
+        elif i == 1:
+            rank = "🥈"
+        elif i == 2:
+            rank = "🥉"
+        else:
+            rank = f"#{i+1}"
+
+        # add each as a field
+        embed.add_field(
+            name=f"{rank} `{username}` - {level}",
+            value=f"",
+            inline=False  # one per line
+        )
+    conn.close()
+    await interaction.followup.send(embed=embed, ephemeral=hidden)
+    
 @bot.event
 async def on_message(message):
     if message.author.bot:
@@ -404,86 +469,92 @@ async def on_message(message):
     conn = get_db()
     cur = conn.cursor()
 
-    user = cur.execute("SELECT * FROM users WHERE guild_id=? AND user_id=?", (guild_id, user_id)).fetchone()
+    try:
+        user = cur.execute("SELECT * FROM users WHERE guild_id=? AND user_id=?", (guild_id, user_id)).fetchone()
 
-    if not user:
-        cur.execute("""
-            INSERT INTO users (
-                guild_id, user_id, display_name, username,
-                level, progress, out_of,
-                last_message, total_messages, total_messages_xp, total_xp
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            guild_id, user_id, message.author.display_name, message.author.name,
-            0, 0, 100,
-            "", 0, 0, 0
-        ))
+        if not user:
+            cur.execute("""
+                INSERT INTO users (
+                    guild_id, user_id, display_name, username,
+                    level, progress, out_of,
+                    last_message, total_messages, total_messages_xp, total_xp
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                guild_id, user_id, message.author.display_name, message.author.name,
+                0, 0, 100,
+                "", 0, 0, 0
+            ))
 
-        conn.commit()
+            conn.commit()
 
-    now = time.time()
+        now = time.time()
 
-    if len(message.content) < 5:
-        cur.execute("UPDATE users SET total_messages = total_messages + 1 WHERE guild_id=? AND user_id=?", (guild_id, user_id))
-        conn.commit()
-        conn.close()
-        return
-    
-    if user_id in last_xp:
-        if now - last_xp[user_id] < COOLDOWN:
-            return
-        
-    xp = random.randint(1, 15)
-    last_xp[user_id] = now
-
-    cur.execute("""
-    UPDATE users
-    SET progress = progress + ?,
-        total_xp = total_xp + ?,
-        last_message = ?,
-        total_messages_xp = total_messages_xp + 1,
-        total_messages = total_messages + 1
-    WHERE guild_id=? AND user_id=?
-    """, (xp, xp, str(datetime.datetime.now()), guild_id, user_id))
-    user = cur.execute("SELECT * FROM users WHERE guild_id=? AND user_id=?", (guild_id, user_id)).fetchone()
-    progress = user["progress"]
-    out_of = user["out_of"]
-    level = user["level"]
-
-    if progress >= out_of:
-        progress -= out_of
-        level += 1
-        out_of = int(100 + level * 20)
-
-        if message.guild.id != 1203657476306894868:
-            cur.execute("UPDATE users SET level=?, progress=?, out_of=? WHERE guild_id=? AND user_id=?", (level, progress, out_of, guild_id, user_id))
+        if len(message.content) < 5:
+            cur.execute("UPDATE users SET total_messages = total_messages + 1 WHERE guild_id=? AND user_id=?", (guild_id, user_id))
             conn.commit()
             conn.close()
             return
+        
+        if user_id in last_xp:
+            if now - last_xp[user_id] < COOLDOWN:
+                return
+            
+        xp = random.randint(1, 15)
+        last_xp[user_id] = now
 
-        level_channel = bot.get_channel(1450192627478564916)
+        cur.execute("""
+        UPDATE users
+        SET progress = progress + ?,
+            total_xp = total_xp + ?,
+            last_message = ?,
+            total_messages_xp = total_messages_xp + 1,
+            total_messages = total_messages + 1
+        WHERE guild_id=? AND user_id=?
+        """, (xp, xp, str(datetime.datetime.now()), guild_id, user_id))
+        user = cur.execute("SELECT * FROM users WHERE guild_id=? AND user_id=?", (guild_id, user_id)).fetchone()
+        progress = user["progress"]
+        out_of = user["out_of"]
+        level = user["level"]
 
-        if level_channel and isinstance(level_channel, discord.TextChannel):
-            emojis = ['⭐', '🔥', '🌟', '💎', '⚡', '🛡️', '🏹', '🎯', '👑', '🌈']
-            index = min((level - 1) // 10, len(emojis) - 1)  # cap at last emoji
-            emoji = emojis[index]
-            count = min((level - 1) % 10 + 1, 10)
-            await level_channel.send(f"🎊 {message.author.mention} reached **Level {level}**! {emoji*count}")
+        if progress >= out_of:
+            progress -= out_of
+            level += 1
+            out_of = int(100 + level * 20)
 
-        if level in LEVEL_ROLES:
-            role_id = LEVEL_ROLES[level]
-            role = message.guild.get_role(role_id)
+            if message.guild.id != 1203657476306894868:
+                cur.execute("UPDATE users SET level=?, progress=?, out_of=? WHERE guild_id=? AND user_id=?", (level, progress, out_of, guild_id, user_id))
+                conn.commit()
+                conn.close()
+                return
 
-            if role:
-                await message.author.add_roles(role)
+            level_channel = bot.get_channel(1450192627478564916)
 
-                if level_channel and isinstance(level_channel, discord.TextChannel):
-                    await level_channel.send(f"🎖️ Congrats {message.author.mention}! You've earned the **`{role.name}`** role!")
+            if level_channel and isinstance(level_channel, discord.TextChannel):
+                emojis = ['⭐', '🔥', '🌟', '💎', '⚡', '🛡️', '🏹', '🎯', '👑', '🌈']
+                index = min((level - 1) // 10, len(emojis) - 1)  # cap at last emoji
+                emoji = emojis[index]
+                count = min((level - 1) % 10 + 1, 10)
+                await level_channel.send(f"🎊 {message.author.mention} reached **Level {level}**! {emoji*count}")
 
-    cur.execute("UPDATE users SET level=?, progress=?, out_of=? WHERE guild_id=? AND user_id=?", (level, progress, out_of, guild_id, user_id))
-    conn.commit()
+            if level in LEVEL_ROLES:
+                role_id = LEVEL_ROLES[level]
+                role = message.guild.get_role(role_id)
+
+                if role:
+                    await message.author.add_roles(role)
+
+                    if level_channel and isinstance(level_channel, discord.TextChannel):
+                        await level_channel.send(f"🎖️ Congrats {message.author.mention}! You've earned the **`{role.name}`** role!")
+
+        cur.execute("UPDATE users SET level=?, progress=?, out_of=? WHERE guild_id=? AND user_id=?", (level, progress, out_of, guild_id, user_id))
+        conn.commit()
     
+    except Exception as e:
+        await message.reply(f"Something went wrong... Please DM <@996771607630585856> about this\n> {e}", allowed_mentions=discord.AllowedMentions(users=False))
+        conn.close()
+        return
+
     conn.close()
     await bot.process_commands(message)
 
