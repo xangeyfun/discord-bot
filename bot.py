@@ -5,9 +5,9 @@ from simpleeval import simple_eval
 import datetime
 import requests
 import discord
+import sqlite3
 import random
 import time
-import json
 import os
 
 startup = time.time()
@@ -21,7 +21,7 @@ intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents, status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.watching, name="Type / for commands"))
 TOKEN = os.getenv("TOKEN")
 allowed_user = os.getenv("ALLOWED_USER_ID")
-guild = discord.Object(id=int(os.getenv("GUILD_ID") or "0"))
+guild = discord.Object(id=int(os.getenv("GUILD_ID")))
 COOLDOWN = 30
 last_xp = {}
 LEVEL_ROLES = {
@@ -34,6 +34,11 @@ LEVEL_ROLES = {
 def date():
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+def get_db():
+    conn = sqlite3.connect("database.db")
+    conn.row_factory = sqlite3.Row
+    return conn
+
 print(f"{date()} DEBUG  Starting bot...\n")
 
 @bot.event
@@ -42,7 +47,7 @@ async def on_ready():
     try:
         print(f"{date()} DEBUG  Syncing commands...")
         start_sync = time.time()
-        synced = await bot.tree.sync() #guild=guild)
+        synced = await bot.tree.sync() # guild=guild)
         done = time.time()
     except Exception as e:
         print(f"{date()} ERROR  Error while syncing commands: {e}")
@@ -89,7 +94,7 @@ async def on_interaction(interaction: discord.Interaction):
         print(f"{date()} COMMAND '/{command_name}{options_str}' used by '{user_name}' in '{guild_name}{channel_name}' (user_id: {user_id}{guild_id})")
 
 
-@bot.tree.command(name="help", description="Get help about the bot.") # , guild=guild)
+@bot.tree.command(name="help", description="Get help about the bot.") #, guild=guild)
 async def help(interaction: discord.Interaction):
     help_text = (
         "## **Available Commands:**\n"
@@ -111,11 +116,11 @@ async def help(interaction: discord.Interaction):
     )
     await interaction.response.send_message(help_text, ephemeral=True)
 
-@bot.tree.command(name="ping", description="Test the bot's latency.") # , guild=guild)
+@bot.tree.command(name="ping", description="Test the bot's latency.") #, guild=guild)
 async def ping(interaction: discord.Interaction):
     await interaction.response.send_message(f"> Pong! {round(bot.latency * 1000)}ms :ping_pong:", ephemeral=True)
 
-@bot.tree.command(name="calc", description="Simple calculator") # , guild=guild)
+@bot.tree.command(name="calc", description="Simple calculator") #, guild=guild)
 @app_commands.describe(expression="an expression like 5*2+3")
 async def calc(interaction: Interaction, expression: str):
     allowed = "0123456789+-*/(). "
@@ -128,7 +133,7 @@ async def calc(interaction: Interaction, expression: str):
     except Exception as e:
         await interaction.response.send_message(f"> Error evaluating expression: {e}", ephemeral=True)
 
-@bot.tree.command(name="flip", description="Flip a coin.") # , guild=guild)
+@bot.tree.command(name="flip", description="Flip a coin.") #, guild=guild)
 @app_commands.describe(hidden="Hide the command from others")
 async def flip(interaction: Interaction, hidden: bool = False):
     if hidden:
@@ -136,11 +141,11 @@ async def flip(interaction: Interaction, hidden: bool = False):
     else:
         await interaction.response.send_message("> " + random.choice(["Heads!", "Tails!"]))
 
-@bot.tree.command(name="github", description="Find the code on github!") # , guild=guild)
+@bot.tree.command(name="github", description="Find the code on github!") #, guild=guild)
 async def github(interaction: discord.Interaction):
     await interaction.response.send_message(f"> Bot made by xangey_fun <@996771607630585856>\n> <https://github.com/xangeyfun/discord-bot>")
 
-@bot.tree.command(name="rps", description="Rock Paper Scissors") # , guild=guild)
+@bot.tree.command(name="rps", description="Rock Paper Scissors") #, guild=guild)
 @app_commands.describe(hand="Rock / Paper / Scissors", hidden="Hide the command from others")
 @app_commands.choices(hand=[
     app_commands.Choice(name="Rock", value="Rock"),
@@ -168,7 +173,7 @@ async def rps(interaction: Interaction, hand: str, hidden: bool = False):
     else:
         await interaction.response.send_message(f"> :robot: {bot_choice.capitalize()}  -  :bust_in_silhouette: {hand.capitalize()}\n> {result}")
 
-@bot.tree.command(name="random", description="Random number generator") # , guild=guild)
+@bot.tree.command(name="random", description="Random number generator") #, guild=guild)
 @app_commands.describe(a="Lowest number", b="Highest number", hidden="Hide the command from others")
 async def random_number(interaction: Interaction, a: int, b: int, hidden: bool = False):
     if a >= b:
@@ -180,7 +185,7 @@ async def random_number(interaction: Interaction, a: int, b: int, hidden: bool =
     else:
         await interaction.response.send_message(f"> Result: {result}")
 
-@bot.tree.command(name="userinfo", description="Get info about a user") # , guild=guild)
+@bot.tree.command(name="userinfo", description="Get info about a user") #, guild=guild)
 @app_commands.describe(user="The user you want info about", hidden="Hide the command from others")
 async def userinfo(interaction: discord.Interaction, user: discord.Member, hidden: bool = False):
     roles = [role.name for role in user.roles if role.name != "@everyone"]
@@ -196,7 +201,7 @@ async def userinfo(interaction: discord.Interaction, user: discord.Member, hidde
     else:
         await interaction.response.send_message(embed=embed)
 
-@bot.tree.command(name="quote", description="Get a quote") # , guild=guild)
+@bot.tree.command(name="quote", description="Get a quote") #, guild=guild)
 @app_commands.describe(choice='"Today" or "Random"', hidden="Hide the command from others")
 @app_commands.choices(choice=[
     app_commands.Choice(name="Today", value="Today"),
@@ -219,7 +224,7 @@ async def quote(interaction: discord.Interaction, choice: str, hidden: bool = Fa
     else:
         await interaction.followup.send(f"> \"{data[0]['q']}\" - {data[0]['a']}")
 
-@bot.tree.command(name="meme", description="Get a random meme") # , guild=guild)
+@bot.tree.command(name="meme", description="Get a random meme") #, guild=guild)
 @app_commands.describe(subreddit="Subreddit to get meme from (optional)", hidden="Hide the command from others")
 async def meme(interaction: discord.Interaction, subreddit: str | None = None, hidden: bool = False):
     await interaction.response.defer(ephemeral=hidden)
@@ -248,7 +253,7 @@ async def meme(interaction: discord.Interaction, subreddit: str | None = None, h
     else:
         await interaction.followup.send(embed=embed)
 
-@bot.tree.command(name="duck", description="Get a random duck picture") # , guild=guild)
+@bot.tree.command(name="duck", description="Get a random duck picture") #, guild=guild)
 @app_commands.describe(hidden="Hide the command from others")
 async def duck(interaction: discord.Interaction, hidden: bool = False):
     await interaction.response.defer(ephemeral=hidden)
@@ -269,7 +274,7 @@ async def duck(interaction: discord.Interaction, hidden: bool = False):
     else:
         await interaction.followup.send(embed=embed)
 
-@bot.tree.command(name="fox", description="Get a random fox picture") # , guild=guild)
+@bot.tree.command(name="fox", description="Get a random fox picture") #, guild=guild)
 @app_commands.describe(hidden="Hide the command from others")
 async def fox(interaction: discord.Interaction, hidden: bool = False):
     await interaction.response.defer(ephemeral=hidden)
@@ -290,7 +295,7 @@ async def fox(interaction: discord.Interaction, hidden: bool = False):
     else:
         await interaction.followup.send(embed=embed)
 
-@bot.tree.command(name="uptime", description="Check the bot's uptime.") # , guild=guild)
+@bot.tree.command(name="uptime", description="Check the bot's uptime.") #, guild=guild)
 async def uptime(interaction: discord.Interaction):
     current_time = time.time()
     uptime_seconds = int(current_time - startup)
@@ -299,7 +304,7 @@ async def uptime(interaction: discord.Interaction):
     uptime_str = f"{hours}h {minutes}m {seconds}s"
     await interaction.response.send_message(f"> Uptime: {uptime_str}", ephemeral=True)
 
-@bot.tree.command(name="fact", description="Get a daily fact.")# )# , guild=guild)
+@bot.tree.command(name="fact", description="Get a daily fact.") #, guild=guild)
 @app_commands.describe(hidden="Hide the command from others", choice='"Today" or "Random"')
 @app_commands.choices(choice=[
     app_commands.Choice(name="Today", value="Today"),
@@ -322,7 +327,7 @@ async def fact(interaction: discord.Interaction, choice: str, hidden: bool = Fal
     else:
         await interaction.followup.send(f"> {data['text']}")
 
-@bot.tree.command(name="dog", description="Get a random dog picture") # , guild=guild)
+@bot.tree.command(name="dog", description="Get a random dog picture") #, guild=guild)
 @app_commands.describe(hidden="Hide the command from others")
 async def dog(interaction: discord.Interaction, hidden: bool = False):
     await interaction.response.defer(ephemeral=hidden)
@@ -343,7 +348,7 @@ async def dog(interaction: discord.Interaction, hidden: bool = False):
     else:
         await interaction.followup.send(embed=embed)
 
-@bot.tree.command(name="shutdown", description="Shut down the bot (owner only).") # , guild=guild)
+@bot.tree.command(name="shutdown", description="Shut down the bot (owner only).") #, guild=guild)
 async def shutdown(interaction: discord.Interaction):
     if str(interaction.user.id) != allowed_user:
         await interaction.response.send_message("> You do not have permission to use this command.", ephemeral=True)
@@ -352,7 +357,7 @@ async def shutdown(interaction: discord.Interaction):
     print(f"{date()} DEBUG  Shutdown command issued by {interaction.user.name} (ID: {interaction.user.id})")
     await bot.close()
 
-@bot.tree.command(name="level", description="Check your server level")
+@bot.tree.command(name="level", description="Check your server level") #, guild=guild)
 async def level(interaction: discord.Interaction, hidden: bool = False, user: discord.Member | None = None):
     await interaction.response.defer(ephemeral=hidden)
     if not interaction.guild:
@@ -360,12 +365,16 @@ async def level(interaction: discord.Interaction, hidden: bool = False, user: di
         return
 
     user = user or interaction.user # type: ignore
-    
+
     try:
-        with open(f"data/{interaction.guild.id}/{user.id}.json", "r") as f: # type: ignore
-            data = json.load(f)
-    except FileNotFoundError:
-        await interaction.followup.send(f"{user.display_name}'s data file was not found! Try sending a message to create one.", ephemeral=hidden) # type: ignore
+        conn = get_db()
+        cur = conn.cursor()
+        data = cur.execute("SELECT * FROM users WHERE guild_id=? AND user_id=?", (interaction.guild.id, interaction.user.id)).fetchone()
+        if not data:
+            await interaction.followup.send(f"{user.display_name}'s data file was not found! Try sending a message to create one.", ephemeral=hidden) # type: ignore
+            conn.close()
+            return
+    except Exception:
         return
     filled_blocks = round(data["progress"] / data["out_of"] * 20)
     bar = f"{'█'*filled_blocks:<20}".replace(" ", "░")
@@ -392,56 +401,65 @@ async def on_message(message):
     guild_id = message.guild.id
     user_id = message.author.id
 
-    os.makedirs(f"data/{guild_id}", exist_ok=True)
-    path = f"data/{guild_id}/{user_id}.json"
+    conn = get_db()
+    cur = conn.cursor()
 
-    if not os.path.exists(path):
-        with open(path, "w") as f:
-            json.dump({
-                "user_id": message.author.id,
-                "display_name": message.author.display_name,
-                "username": message.author.name,
-                "guild_id": message.guild.id if message.guild.id else None,
-                "guild": message.guild.name if message.guild.name else None,
-                "level": 0,
-                "progress": 0,
-                "out_of": 100,
-                "last_message": "",
-                "total_messages": 0,
-                "total_messages_xp": 0,
-                "total_xp": 0,
-            }, f, indent=2)
+    user = cur.execute("SELECT * FROM users WHERE guild_id=? AND user_id=?", (guild_id, user_id)).fetchone()
 
-    with open(path, "r") as f:
-        data = json.load(f)
+    if not user:
+        cur.execute("""
+            INSERT INTO users (
+                guild_id, user_id, display_name, username,
+                level, progress, out_of,
+                last_message, total_messages, total_messages_xp, total_xp
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            guild_id, user_id, message.author.display_name, message.author.name,
+            0, 0, 100,
+            "", 0, 0, 0
+        ))
+
+        conn.commit()
 
     now = time.time()
-    data["total_messages"] += 1
-    if len(message.content) < 5:
-        with open(path, "w") as f:
-            json.dump(data, f, indent=2)
-        return
-    if message.author.id in last_xp:
-        if now - last_xp[user_id] < COOLDOWN:
-            with open(path, "w") as f:
-                json.dump(data, f, indent=2)
-            return
-    xp = random.randint(1, 15)
-    data["progress"] += xp
-    data["total_xp"] += xp
-    data["total_messages_xp"] += 1
-    last_xp[user_id] = now
-    data["last_message"] = str(datetime.datetime.now())
-    if data["progress"] >= data["out_of"]:
-        data["progress"] -= data["out_of"]
-        data["level"] += 1
-        data["out_of"] = int(100 + data["level"] * 20)
 
-        level = data["level"]
+    if len(message.content) < 5:
+        cur.execute("UPDATE users SET total_messages = total_messages + 1 WHERE guild_id=? AND user_id=?", (guild_id, user_id))
+        conn.commit()
+        conn.close()
+        return
+    
+    if user_id in last_xp:
+        if now - last_xp[user_id] < COOLDOWN:
+            return
+        
+    xp = random.randint(1, 15)
+    last_xp[user_id] = now
+
+    cur.execute("""
+    UPDATE users
+    SET progress = progress + ?,
+        total_xp = total_xp + ?,
+        last_message = ?,
+        total_messages_xp = total_messages_xp + 1,
+        total_messages = total_messages + 1
+    WHERE guild_id=? AND user_id=?
+    """, (xp, xp, str(datetime.datetime.now()), guild_id, user_id))
+    user = cur.execute("SELECT * FROM users WHERE guild_id=? AND user_id=?", (guild_id, user_id)).fetchone()
+    progress = user["progress"]
+    out_of = user["out_of"]
+    level = user["level"]
+
+    if progress >= out_of:
+        progress -= out_of
+        level += 1
+        out_of = int(100 + level * 20)
 
         if message.guild.id != 1203657476306894868:
-            with open(path, "w") as f:
-                json.dump(data, f, indent=2)
+            cur.execute("UPDATE users SET level=?, progress=?, out_of=? WHERE guild_id=? AND user_id=?", (level, progress, out_of, guild_id, user_id))
+            conn.commit()
+            conn.close()
             return
 
         level_channel = bot.get_channel(1450192627478564916)
@@ -463,9 +481,36 @@ async def on_message(message):
                 if level_channel and isinstance(level_channel, discord.TextChannel):
                     await level_channel.send(f"🎖️ Congrats {message.author.mention}! You've earned the **`{role.name}`** role!")
 
-    with open(path, "w") as f:
-        json.dump(data, f, indent=2)
-
+    cur.execute("UPDATE users SET level=?, progress=?, out_of=? WHERE guild_id=? AND user_id=?", (level, progress, out_of, guild_id, user_id))
+    conn.commit()
+    
+    conn.close()
     await bot.process_commands(message)
 
-bot.run(TOKEN) # type: ignore
+if __name__ == "__main__":
+    # Setup DB
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        guild_id INTEGER,
+        user_id INTEGER,
+        display_name TEXT,
+        username TEXT,
+        level INTEGER,
+        progress INTEGER,
+        out_of INTEGER,
+        last_message TEXT,
+        total_messages INTEGER,
+        total_messages_xp INTEGER,
+        total_xp INTEGER,
+        PRIMARY KEY (guild_id, user_id)
+    )
+    """)
+
+    conn.commit()
+    conn.close()
+
+    # Run the bot
+    bot.run(TOKEN) # type: ignore
