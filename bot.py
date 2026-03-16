@@ -369,7 +369,7 @@ async def level(interaction: discord.Interaction, hidden: bool = False, user: di
         return
     filled_blocks = round(data["progress"] / data["out_of"] * 20)
     bar = f"{'█'*filled_blocks:<20}".replace(" ", "░")
-    await interaction.followup.send(f"> **{user.mention}** is level {data['level']} ({data['progress']}/{data['out_of']} XP)\n> [{bar}] {data['progress'] / data['out_of'] * 100:.1f}%\n> {data['total_xp']} total XP | {data['total_messages_xp']} messages counted for XP (out of {data['total_messages']} total messages)", allowed_mentions=discord.AllowedMentions(users=False)) # type: ignore
+    await interaction.followup.send(f"**{user.mention} is level {data['level']}** ({data['progress']}/{data['out_of']} XP)\n> [{bar}] {data['progress'] / data['out_of'] * 100:.1f}%\n> {data['total_xp']} total XP | {data['total_messages_xp']} messages counted for XP (out of {data['total_messages']} total messages)", allowed_mentions=discord.AllowedMentions(users=False)) # type: ignore
 
 @bot.event
 async def on_message(message):
@@ -433,7 +433,7 @@ async def on_message(message):
     last_xp[user_id] = now
     data["last_message"] = str(datetime.datetime.now())
     if data["progress"] >= data["out_of"]:
-        data["progress"] = 0
+        data["progress"] -= data["out_of"]
         data["level"] += 1
         data["out_of"] = int(100 + data["level"] * 20)
 
@@ -447,7 +447,11 @@ async def on_message(message):
         level_channel = bot.get_channel(1450192627478564916)
 
         if level_channel and isinstance(level_channel, discord.TextChannel):
-            await level_channel.send(f"🎊 {message.author.mention} reached **Level {level}**! {level*'⭐'}")
+            emojis = ['⭐', '🔥', '🌟', '💎', '⚡', '🛡️', '🏹', '🎯', '👑', '🌈']
+            index = min((level - 1) // 10, len(emojis) - 1)  # cap at last emoji
+            emoji = emojis[index]
+            count = min((level - 1) % 10 + 1, 10)
+            await level_channel.send(f"🎊 {message.author.mention} reached **Level {level}**! {emoji*count}")
 
         if level in LEVEL_ROLES:
             role_id = LEVEL_ROLES[level]
