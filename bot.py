@@ -512,6 +512,7 @@ async def on_message(message):
             total_messages = total_messages + 1
         WHERE guild_id=? AND user_id=?
         """, (xp, xp, str(datetime.datetime.now()), guild_id, user_id))
+        conn.commit()
         user = cur.execute("SELECT * FROM users WHERE guild_id=? AND user_id=?", (guild_id, user_id)).fetchone()
         progress = user["progress"]
         out_of = user["out_of"]
