@@ -526,17 +526,17 @@ async def on_message(message):
             level += 1
             out_of = int(100 + level * 20)
 
-            if message.guild.id != 1203657476306894868:
+            if message.guild.id not in [1203657476306894868, 1487803811178352832]:
                 cur.execute("UPDATE users SET level=?, progress=?, out_of=? WHERE guild_id=? AND user_id=?", (level, progress, out_of, guild_id, user_id))
                 conn.commit()
                 conn.close()
                 return
 
-            level_channel = bot.get_channel(1450192627478564916)
+            level_channel = bot.get_channel(1450192627478564916 if message.guild.id == 1203657476306894868 else 1487803937254801408)
 
             if level_channel and isinstance(level_channel, discord.TextChannel):
                 emojis = ['⭐', '🔥', '🌟', '💎', '⚡', '🛡️', '🏹', '🎯', '👑', '🌈']
-                index = min((level - 1) // 10, len(emojis) - 1)  # cap at last emoji
+                index = min((level - 1) // 10, len(emojis) - 1)
                 emoji = emojis[index]
                 count = min((level - 1) % 10 + 1, 10)
                 await level_channel.send(f"🎊 {message.author.mention} reached **Level {level}**! {emoji*count}")
