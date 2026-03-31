@@ -388,7 +388,7 @@ async def level(interaction: discord.Interaction, hidden: bool = False, user: di
     await interaction.followup.send(f"**{user.mention} is level {data['level']}** ({data['progress']}/{data['out_of']} XP)\n> [{bar}] {data['progress'] / data['out_of'] * 100:.1f}%\n> {data['total_xp']} total XP | {data['total_messages_xp']} messages counted for XP (out of {data['total_messages']} total messages)", allowed_mentions=discord.AllowedMentions(users=False)) # type: ignore
 
 @bot.tree.command(name="leaderboard", description="Check the server level leaderboard") #, guild=guild)
-@app_commands.describe(hidden="Hide the command from others", sort='What to sort by')
+@app_commands.describe(hidden="Hide the command from others", sort='What to sort by', global_lb='Show global leaderboard')
 @app_commands.choices(
     sort=[
         app_commands.Choice(name="Level", value="Level"),
@@ -396,7 +396,7 @@ async def level(interaction: discord.Interaction, hidden: bool = False, user: di
         app_commands.Choice(name="Total Messages", value="Total Messages")
     ]
 )
-async def fact(interaction: discord.Interaction, sort: str, hidden: bool = False):
+async def fact(interaction: discord.Interaction, sort: str, global_lb: bool = False, hidden: bool = False):
     await interaction.response.defer(ephemeral=hidden)
     if not interaction.guild:
         await interaction.followup.send("This command only works in servers.", ephemeral=True)
@@ -406,12 +406,21 @@ async def fact(interaction: discord.Interaction, sort: str, hidden: bool = False
     cur = conn.cursor()
 
     try:
-        if sort == "Level":
-            leaderboad = cur.execute(f"SELECT username, level FROM users WHERE guild_id=? ORDER BY level DESC LIMIT 10", (interaction.guild.id,)).fetchall()
-        if sort == "Total XP":
-            leaderboad = cur.execute(f"SELECT username, total_xp FROM users WHERE guild_id=? ORDER BY total_xp DESC LIMIT 10", (interaction.guild.id,)).fetchall()
-        if sort == "Total Messages":
-            leaderboad = cur.execute(f"SELECT username, total_messages FROM users WHERE guild_id=? ORDER BY total_messages DESC LIMIT 10", (interaction.guild.id,)).fetchall()
+        if not global_lb:
+            if sort == "Level":
+                leaderboad = cur.execute(f"SELECT username, level FROM users WHERE guild_id=? ORDER BY level DESC LIMIT 10", (interaction.guild.id,)).fetchall()
+            if sort == "Total XP":
+                leaderboad = cur.execute(f"SELECT username, total_xp FROM users WHERE guild_id=? ORDER BY total_xp DESC LIMIT 10", (interaction.guild.id,)).fetchall()
+            if sort == "Total Messages":
+                leaderboad = cur.execute(f"SELECT username, total_messages FROM users WHERE guild_id=? ORDER BY total_messages DESC LIMIT 10", (interaction.guild.id,)).fetchall()
+        else:
+            if sort == "Level":
+                leaderboad = cur.execute(f"SELECT username, level FROM users ORDER BY level DESC LIMIT 10").fetchall()
+            if sort == "Total XP":
+                leaderboad = cur.execute(f"SELECT username, total_xp FROM users ORDER BY total_xp DESC LIMIT 10").fetchall()
+            if sort == "Total Messages":
+                leaderboad = cur.execute(f"SELECT username, total_messages FROM users ORDER BY total_messages DESC LIMIT 10").fetchall()
+        
 
     except Exception as e:
         await interaction.followup.send(f"Something went wrong... Please DM <@996771607630585856> about this\n> {e}", ephemeral=hidden, allowed_mentions=discord.AllowedMentions(users=False))
@@ -419,7 +428,7 @@ async def fact(interaction: discord.Interaction, sort: str, hidden: bool = False
         return
 
     embed = discord.Embed(
-        title=f"🏆 {sort} Leaderboard",
+        title=f"🏆 {'Global' if global_lb else 'Server'} {sort} Leaderboard",
         color=discord.Color(0x7128fc)
     )
 
@@ -442,6 +451,7 @@ async def fact(interaction: discord.Interaction, sort: str, hidden: bool = False
             value=f"",
             inline=False  # one per line
         )
+    
     conn.close()
     await interaction.followup.send(embed=embed, ephemeral=hidden)
     
