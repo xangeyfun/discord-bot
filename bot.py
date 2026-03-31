@@ -99,20 +99,24 @@ async def help(interaction: discord.Interaction):
     help_text = (
         "## **Available Commands:**\n"
         "> **<required>**  |  **[optional]**\n\n"
-        "> `/ping` - Test the bot's latency.\n"
-        "> `/calc <expression>` - Simple calculator.\n"
-        "> `/flip` - Flip a coin.\n"
-        "> `/github` - Find the code on GitHub.\n"
-        "> `/rps <str>` - Play Rock Paper Scissors.\n"
-        "> `/random <int> <int>` - Generate a random number between a and b.\n"
-        "> `/userinfo <str>` - Get info about a user.\n"
-        "> `/quote <str>` - Get a quote (Today or Random).\n"
-        "> `/meme [str]` - Get a random meme.\n"
-        "> `/duck` - Get a random duck picture.\n"
-        "> `/fox` - Get a random fox picture.\n"
-        "> `/uptime` - Check the bot's uptime.\n"
-        "> `/fact <str>` - Get a daily fact.\n"
-        "> `/dog` - Get a random dog picture.\n"
+        "> **`/ping`** - Test the bot's latency.\n"
+        "> **`/calc <expression>`** - Simple calculator.\n"
+        "> **`/flip`** - Flip a coin.\n"
+        "> **`/github`** - Find the code on GitHub.\n"
+        "> **`/rps <str>`** - Play Rock Paper Scissors.\n"
+        "> **`/random <int> <int>`** - Generate a random number between a and b.\n"
+        "> **`/userinfo <str>`** - Get info about a user.\n"
+        "> **`/quote <str>`** - Get a quote (Today or Random).\n"
+        "> **`/meme [str]`** - Get a random meme.\n"
+        "> **`/duck`** - Get a random duck picture.\n"
+        "> **`/fox`** - Get a random fox picture.\n"
+        "> **`/uptime`** - Check the bot's uptime.\n"
+        "> **`/fact <str>`** - Get a daily fact.\n"
+        "> **`/dog`** - Get a random dog picture.\n"
+        "> **`/level [user]`** - Check your server level.\n"
+        "> **`/leaderboard <str> [bool]`** - Check the server level leaderboard.\n\n"
+        "Some commands have an option to hide the response from others.\n"
+        "Use it if you don't want to spam channels or just want some privacy :wink: \n\n"
     )
     await interaction.response.send_message(help_text, ephemeral=True)
 
@@ -143,7 +147,7 @@ async def flip(interaction: Interaction, hidden: bool = False):
 
 @bot.tree.command(name="github", description="Find the code on github!") #, guild=guild)
 async def github(interaction: discord.Interaction):
-    await interaction.response.send_message(f"> Bot made by xangey_fun <@996771607630585856>\n> <https://github.com/xangeyfun/discord-bot>")
+    await interaction.response.send_message(f"> Bot made by xangey_fun <@996771607630585856>\n> <https://github.com/xangeyfun/discord-bot>", ephemeral=True, allowed_mentions=discord.AllowedMentions(users=False))
 
 @bot.tree.command(name="rps", description="Rock Paper Scissors") #, guild=guild)
 @app_commands.describe(hand="Rock / Paper / Scissors", hidden="Hide the command from others")
