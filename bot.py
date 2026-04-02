@@ -468,9 +468,17 @@ async def on_message(message):
     print(f"{date()} MESSAGE from {message.author} in {message.guild.name if message.guild else 'DM'}/{message.channel.name if message.channel else 'Unknown'}: {message.content} {message.attachments[0].url if message.attachments else ''} {message.embeds[0].url if message.embeds else ''} {message.stickers[0].url if message.stickers else ''}")
 
     # duck reaction
-    if any(word in message.content.lower() for word in ["duck", "quack"]):
+    if message.content.lower() in ["duck", "quack"]:
         await message.add_reaction("🦆")
         await message.channel.send("Quack! 🦆")
+
+    if message.content.lower() in ["cat", "meow"]:
+        await message.add_reaction("😼")
+        await message.channel.send("Meow! 😼")
+
+    if message.content.lower() in ["dog", "woof"]:
+        await message.add_reaction("🐶")
+        await message.channel.send("Woof! 🐶")
 
     if any(word in message.content.lower() for word in [":3"]):
         await message.add_reaction(bot.get_emoji(1488541008261288088) or "😺")
