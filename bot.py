@@ -396,13 +396,13 @@ async def level(interaction: discord.Interaction, hidden: bool = False, user: di
             return
 
         rank = cur.execute(
-            "SELECT COUNT(*) + 1 FROM users WHERE guild_id=? AND level > ?",
-            (interaction.guild.id, data["level"])
+            "SELECT COUNT(*) + 1 FROM users WHERE guild_id=? AND total_xp > ?",
+            (interaction.guild.id, data["total_xp"])
         ).fetchone()[0]
 
         global_rank = cur.execute(
-            "SELECT COUNT(*) + 1 FROM users WHERE level > ?",
-            (data["level"],)
+            "SELECT COUNT(*) + 1 FROM users WHERE total_xp > ?",
+            (data["total_xp"],)
         ).fetchone()[0]
 
     except Exception as e:
@@ -417,7 +417,7 @@ async def level(interaction: discord.Interaction, hidden: bool = False, user: di
     progress = data["progress"]
     out_of = data["out_of"]
     percent = (progress / out_of) * 100 if out_of else 0
-    global_rank = f" • Global: `#{global_rank}`"
+    global_rank = f" (`#{global_rank}` Global)"
 
     filled_blocks = round(percent / 100 * 10)
     bar = f"{'▰'*filled_blocks}{'▱'*(10-filled_blocks)}"
@@ -433,7 +433,7 @@ async def level(interaction: discord.Interaction, hidden: bool = False, user: di
 
     embed.description = (
         f"**Level {data['level']}** • `#{rank}`{global_rank}{extra}\n"
-        f"`{progress:,} / {out_of:,} XP` • {percent:.1f}%\n\n"
+        f"`{progress:,} / {out_of:,} XP` • {percent:.1f}%\n"
         f"[{bar}]"
     )
 
