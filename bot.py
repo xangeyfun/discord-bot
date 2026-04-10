@@ -367,7 +367,7 @@ async def shutdown(interaction: discord.Interaction):
     print(f"{date()} INFO  Shutdown command issued by {interaction.user.name} (ID: {interaction.user.id})")
     await bot.close()
 
-@bot.tree.command(name="level", description="Check your server level") #, guild=guild)
+@bot.tree.command(name="level", description="Check your server level")
 @app_commands.describe(hidden="Hide the command from others", user='Select a user to view their level')
 async def level(interaction: discord.Interaction, hidden: bool = False, user: discord.Member | None = None):
     if not interaction.guild:
@@ -376,23 +376,91 @@ async def level(interaction: discord.Interaction, hidden: bool = False, user: di
 
     await interaction.response.defer(ephemeral=hidden)
 
-    user = user or interaction.user # type: ignore
+    user = user or interaction.user  # type: ignore
 
     try:
         conn = get_db()
         cur = conn.cursor()
-        data = cur.execute("SELECT * FROM users WHERE guild_id=? AND user_id=?", (interaction.guild.id, user.id)).fetchone()
+
+        data = cur.execute(
+            "SELECT * FROM users WHERE guild_id=? AND user_id=?",
+            (interaction.guild.id, user.id)
+        ).fetchone()
+
         if not data:
-            await interaction.followup.send(f"{user.display_name}'s data file was not found! Try sending a message to create one.", ephemeral=hidden) # type: ignore
+            await interaction.followup.send(
+                f"{user.display_name}'s data file was not found! Try sending a message to create one.",
+                ephemeral=hidden
+            )
             conn.close()
             return
+
+        rank = cur.execute(
+            "SELECT COUNT(*) + 1 FROM users WHERE guild_id=? AND level > ?",
+            (interaction.guild.id, data["level"])
+        ).fetchone()[0]
+
+        global_rank = cur.execute(
+            "SELECT COUNT(*) + 1 FROM users WHERE level > ?",
+            (data["level"],)
+        ).fetchone()[0]
+
     except Exception as e:
-        await interaction.followup.send(f"Something went wrong... Please DM <@996771607630585856> about this\n> {e}", ephemeral=hidden, allowed_mentions=discord.AllowedMentions(users=False))
+        await interaction.followup.send(
+            f"Something went wrong... Please DM <@996771607630585856> about this\n> {e}",
+            ephemeral=hidden,
+            allowed_mentions=discord.AllowedMentions(users=False)
+        )
         conn.close()
         return
-    filled_blocks = round(data["progress"] / data["out_of"] * 20)
-    bar = f"{'█'*filled_blocks:<20}".replace(" ", "░")
-    await interaction.followup.send(f"**{user.mention} is level {data['level']}** ({data['progress']}/{data['out_of']} XP)\n> [{bar}] {data['progress'] / data['out_of'] * 100:.1f}%\n> {data['total_xp']} total XP | {data['total_messages_xp']} messages counted for XP (out of {data['total_messages']} total messages)", allowed_mentions=discord.AllowedMentions(users=False)) # type: ignore
+
+    progress = data["progress"]
+    out_of = data["out_of"]
+    percent = (progress / out_of) * 100 if out_of else 0
+    global_rank = f" • Global: `#{global_rank}`"
+
+    filled_blocks = round(percent / 100 * 10)
+    bar = f"{'▰'*filled_blocks}{'▱'*(10-filled_blocks)}"
+
+    extra = ""
+    if percent >= 90:
+        extra = "\n🔥 almost leveling up!"
+
+    embed = discord.Embed(
+        title=f"{user.display_name}'s Level",
+        color=discord.Color(0x7128fc)
+    )
+
+    embed.description = (
+        f"**Level {data['level']}** • `#{rank}`{global_rank}{extra}\n"
+        f"`{progress:,} / {out_of:,} XP` • {percent:.1f}%\n\n"
+        f"[{bar}]"
+    )
+
+    embed.add_field(
+        name="",
+        value=(
+            f"**Total XP:** `{data['total_xp']:,}`\n"
+            f"**Messages (XP):** `{data['total_messages_xp']:,}`\n"
+            f"**Total Messages:** `{data['total_messages']:,}`"
+        ),
+        inline=False
+    )
+
+    embed.set_thumbnail(url=user.display_avatar.url)
+
+    embed.set_footer(
+        text=f"{interaction.guild.name} • {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        icon_url=interaction.guild.icon.url if interaction.guild.icon else None
+    )
+
+    conn.close()
+
+    await interaction.followup.send(
+        embed=embed,
+        ephemeral=hidden,
+        allowed_mentions=discord.AllowedMentions(users=False)
+    )
 
 @bot.tree.command(name="leaderboard", description="Check the server level leaderboard") #, guild=guild)
 @app_commands.describe(hidden="Hide the command from others", sort='What to sort by', global_lb='Show global leaderboard')
@@ -415,34 +483,35 @@ async def fact(interaction: discord.Interaction, sort: str, global_lb: bool = Fa
     try:
         if not global_lb:
             if sort == "Level":
-                leaderboad = cur.execute(f"SELECT username, level FROM users WHERE guild_id=? ORDER BY level DESC LIMIT 10", (interaction.guild.id,)).fetchall()
+                leaderboad = cur.execute(f"SELECT username, level, guild_id FROM users WHERE guild_id=? ORDER BY level DESC LIMIT 10", (interaction.guild.id,)).fetchall()
             if sort == "Total XP":
-                leaderboad = cur.execute(f"SELECT username, total_xp FROM users WHERE guild_id=? ORDER BY total_xp DESC LIMIT 10", (interaction.guild.id,)).fetchall()
+                leaderboad = cur.execute(f"SELECT username, total_xp, guild_id FROM users WHERE guild_id=? ORDER BY total_xp DESC LIMIT 10", (interaction.guild.id,)).fetchall()
             if sort == "Total Messages":
-                leaderboad = cur.execute(f"SELECT username, total_messages FROM users WHERE guild_id=? ORDER BY total_messages DESC LIMIT 10", (interaction.guild.id,)).fetchall()
+                leaderboad = cur.execute(f"SELECT username, total_messages, guild_id FROM users WHERE guild_id=? ORDER BY total_messages DESC LIMIT 10", (interaction.guild.id,)).fetchall()
         else:
             if sort == "Level":
-                leaderboad = cur.execute(f"SELECT username, level FROM users ORDER BY level DESC LIMIT 10").fetchall()
+                leaderboad = cur.execute(f"SELECT username, level, guild_id FROM users ORDER BY level DESC LIMIT 10").fetchall()
             if sort == "Total XP":
-                leaderboad = cur.execute(f"SELECT username, total_xp FROM users ORDER BY total_xp DESC LIMIT 10").fetchall()
+                leaderboad = cur.execute(f"SELECT username, total_xp, guild_id FROM users ORDER BY total_xp DESC LIMIT 10").fetchall()
             if sort == "Total Messages":
-                leaderboad = cur.execute(f"SELECT username, total_messages FROM users ORDER BY total_messages DESC LIMIT 10").fetchall()
+                leaderboad = cur.execute(f"SELECT username, total_messages, guild_id FROM users ORDER BY total_messages DESC LIMIT 10").fetchall()
         
 
     except Exception as e:
         await interaction.followup.send(f"Something went wrong... Please DM <@996771607630585856> about this\n> {e}", ephemeral=hidden, allowed_mentions=discord.AllowedMentions(users=False))
         conn.close()
         return
-
+    
     embed = discord.Embed(
         title=f"🏆 {'Global' if global_lb else 'Server'} {sort} Leaderboard",
         color=discord.Color(0x7128fc)
     )
 
-    for i, row in enumerate(leaderboad):
-        username, level = row[0], row[1]
+    lines = []
 
-        # top 3 emojis
+    for i, row in enumerate(leaderboad):
+        username, level, guild_id = row[0], row[1], row[2]
+
         if i == 0:
             rank = "🥇"
         elif i == 1:
@@ -450,15 +519,24 @@ async def fact(interaction: discord.Interaction, sort: str, global_lb: bool = Fa
         elif i == 2:
             rank = "🥉"
         else:
-            rank = f"#{i+1}"
+            rank = f"`#{i+1}`"
 
-        # add each as a field
-        embed.add_field(
-            name=f"{rank} `{username}` - {level}",
-            value=f"",
-            inline=False  # one per line
-        )
-    
+        server_name = ""
+        if global_lb:
+            server = bot.get_guild(guild_id)
+            server_name = f" • *{server.name}*" if server else " • *Unknown Server*"
+
+        # build line
+        line = f"{rank} **{username}** | Level `{level}`{server_name}"
+        lines.append(line)
+
+    embed.description = "\n".join(lines) if lines else "no data yet :("
+
+    embed.set_footer(
+        text=f"{interaction.guild.name if interaction.guild and not global_lb else 'Global'} Leaderboard • {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        icon_url=interaction.guild.icon.url if interaction.guild and interaction.guild.icon and not global_lb else None
+    )
+
     conn.close()
     await interaction.followup.send(embed=embed, ephemeral=hidden)
     
