@@ -527,7 +527,7 @@ async def fact(interaction: discord.Interaction, sort: str, global_lb: bool = Fa
             server_name = f" • *{server.name}*" if server else " • *Unknown Server*"
 
         # build line
-        line = f"{rank} **{username}** | Level `{level}`{server_name}"
+        line = f"{rank} **{username}** | `{level}`{server_name}"
         lines.append(line)
 
     embed.description = "\n".join(lines) if lines else "no data yet :("
