@@ -150,7 +150,7 @@ async def flip(interaction: Interaction, hidden: bool = False):
 
 @bot.tree.command(name="github", description="Find the code on github!") #, guild=guild)
 async def github(interaction: discord.Interaction):
-    await interaction.response.send_message(f"> Bot made by xangey_fun <@996771607630585856>\n> <https://github.com/xangeyfun/discord-bot>", ephemeral=True, allowed_mentions=discord.AllowedMentions(users=False))
+    await interaction.response.send_message(f"Bot made by `xangey` (<@996771607630585856>)\n> <https://github.com/xangeyfun/discord-bot>", ephemeral=True, allowed_mentions=discord.AllowedMentions(users=False))
 
 @bot.tree.command(name="rps", description="Rock Paper Scissors") #, guild=guild)
 @app_commands.describe(hand="Rock / Paper / Scissors", hidden="Hide the command from others")
