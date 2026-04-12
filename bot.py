@@ -560,6 +560,10 @@ async def on_message(message):
         await message.add_reaction("🐶")
         await message.channel.send("Woof! 🐶")
 
+    if message.content.lower() == "defenestration":
+        await message.add_reaction("⁉")
+        await message.channel.send("Secret Word!!")
+
     if any(word in message.content.lower() for word in [":3"]) and message.guild.id != 1448685763960115202:
         await message.add_reaction(bot.get_emoji(1488541008261288088) or "😺")
 
