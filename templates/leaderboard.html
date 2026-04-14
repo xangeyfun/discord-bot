@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Leaderboard{% endblock %}
+
+{% block content %}
+<section class="leaderboard-page">
+    <div class="leaderboard-header">
+        <h1>Leaderboard</h1>
+        <div class="leaderboard-filters">
+            <select class="filter-select" onchange="window.location.href=this.value">
+                <option value="/leaderboard?sort=level&dir=desc" {% if sort_by == 'level' and direction == 'desc' %}selected{% endif %}>Level ↓</option>
+                <option value="/leaderboard?sort=level&dir=asc" {% if sort_by == 'level' and direction == 'asc' %}selected{% endif %}>Level ↑</option>
+                <option value="/leaderboard?sort=total_xp&dir=desc" {% if sort_by == 'total_xp' and direction == 'desc' %}selected{% endif %}>XP ↓</option>
+                <option value="/leaderboard?sort=total_xp&dir=asc" {% if sort_by == 'total_xp' and direction == 'asc' %}selected{% endif %}>XP ↑</option>
+                <option value="/leaderboard?sort=total_messages&dir=desc" {% if sort_by == 'total_messages' and direction == 'desc' %}selected{% endif %}>Messages ↓</option>
+                <option value="/leaderboard?sort=total_messages&dir=asc" {% if sort_by == 'total_messages' and direction == 'asc' %}selected{% endif %}>Messages ↑</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="leaderboard-table">
+        <div class="leaderboard-row header">
+            <span>Rank</span>
+            <span>User</span>
+            <span>Level</span>
+            <span>XP</span>
+            <span>Messages</span>
+        </div>
+        
+        {% for entry in leaderboard %}
+        <div class="leaderboard-row {% if loop.index == 1 %}top-1{% elif loop.index == 2 %}top-2{% elif loop.index == 3 %}top-3{% endif %}">
+            <span class="rank {% if loop.index == 1 %}rank-1{% elif loop.index == 2 %}rank-2{% elif loop.index == 3 %}rank-3{% endif %}">
+                {% if loop.index == 1 %}🥇
+                {% elif loop.index == 2 %}🥈
+                {% elif loop.index == 3 %}🥉
+                {% else %}#{{ (page - 1) * per_page + loop.index }}{% endif %}
+            </span>
+            <div class="user-cell">
+                <div class="user-avatar">
+                    <img src="{{
+                        'https://cdn.discordapp.com/avatars/' ~ entry.user_id ~ '/' ~ entry.avatar_hash ~ '.png'
+                        if entry.avatar_hash
+                        else 'https://cdn.discordapp.com/embed/avatars/0.png'
+                    }}" alt="" style="width: 45px; height: 45px; border-radius: 50%;">
+                </div>
+                <span class="user-name">{{ entry.username }}</span>
+            </div>
+            <span class="stat-cell">{{ entry.level }}</span>
+            <span class="stat-cell">{{ entry.total_xp|int }}</span>
+            <span class="last-cell">{{ entry.total_messages|int }}</span>
+        </div>
+        {% else %}
+        <div class="leaderboard-row">
+            <span style="grid-column: 1 / -1; text-align: center; color: var(--text-muted);">No users yet. Start chatting to appear here!</span>
+        </div>
+        {% endfor %}
+    </div>
+    
+    {% if total_pages > 1 %}
+    <div class="pagination">
+        {% if page > 1 %}
+        <a href="/leaderboard?sort={{ sort_by }}&dir={{ direction }}&page={{ page - 1 }}">&laquo; Prev</a>
+        {% endif %}
+        
+        {% for p in range(1, total_pages + 1) %}
+        <a href="/leaderboard?sort={{ sort_by }}&dir={{ direction }}&page={{ p }}" {% if p == page %}class="active"{% endif %}>{{ p }}</a>
+        {% endfor %}
+        
+        {% if page < total_pages %}
+        <a href="/leaderboard?sort={{ sort_by }}&dir={{ direction }}&page={{ page + 1 }}">Next &raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

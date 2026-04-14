@@ -150,7 +150,7 @@ async def flip(interaction: Interaction, hidden: bool = False):
 
 @bot.tree.command(name="github", description="Find the code on github!") #, guild=guild)
 async def github(interaction: discord.Interaction):
-    await interaction.response.send_message(f"Bot made by `xangey` (<@996771607630585856>)\n> <https://github.com/xangeyfun/discord-bot>", ephemeral=True, allowed_mentions=discord.AllowedMentions(users=False))
+    await interaction.response.send_message(f"Bot made by `xangey` (<@996771607630585856>)\n> <https://github.com/xangeyfun/discord-bot>\n> <https://voidwave.xangey.dev/>", ephemeral=True, allowed_mentions=discord.AllowedMentions(users=False))
 
 @bot.tree.command(name="rps", description="Rock Paper Scissors") #, guild=guild)
 @app_commands.describe(hand="Rock / Paper / Scissors", hidden="Hide the command from others")
@@ -312,7 +312,7 @@ async def uptime(interaction: discord.Interaction):
     hours, remainder = divmod(uptime_seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
     uptime_str = f"{hours}h {minutes}m {seconds}s"
-    await interaction.response.send_message(f"> Uptime: {uptime_str}", ephemeral=True)
+    await interaction.response.send_message(f"⏱️ **Bot Uptime**\n> {uptime_str}\n\n🔗 Status Page: <https://status.xangey.dev/>", ephemeral=True)
 
 @bot.tree.command(name="fact", description="Get a daily fact.") #, guild=guild)
 @app_commands.describe(hidden="Hide the command from others", choice='"Today" or "Random"')
@@ -442,7 +442,8 @@ async def level(interaction: discord.Interaction, hidden: bool = False, user: di
         value=(
             f"**Total XP:** `{data['total_xp']:,}`\n"
             f"**Messages (XP):** `{data['total_messages_xp']:,}`\n"
-            f"**Total Messages:** `{data['total_messages']:,}`"
+            f"**Total Messages:** `{data['total_messages']:,}`\n\n"
+            f"**View online:** [Dashboard](https://voidwave.xangey.dev/stats/{interaction.guild.id}/{user.id})"
         ),
         inline=False
     )
@@ -600,13 +601,15 @@ async def on_message(message):
                 INSERT INTO users (
                     guild_id, user_id, display_name, username,
                     level, progress, out_of,
-                    last_message, total_messages, total_messages_xp, total_xp
+                    last_message, total_messages, total_messages_xp, total_xp,
+                    avatar_hash
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 guild_id, user_id, message.author.display_name, message.author.name,
                 0, 0, 100,
-                "", 0, 0, 0
+                "", 0, 0, 0,
+                message.author.avatar.key if message.author.avatar else None
             ))
 
             conn.commit()
@@ -614,14 +617,14 @@ async def on_message(message):
         now = time.time()
 
         if len(message.content) < 5:
-            cur.execute("UPDATE users SET total_messages = total_messages + 1, last_message=? WHERE guild_id=? AND user_id=?", (str(datetime.datetime.now()), guild_id, user_id))
+            cur.execute("UPDATE users SET total_messages = total_messages + 1, last_message=?, display_name=?, username=?, avatar_hash=? WHERE guild_id=? AND user_id=?", (str(datetime.datetime.now()), message.author.display_name, message.author.name, message.author.avatar.key if message.author.avatar else None, guild_id, user_id))
             conn.commit()
             conn.close()
             return
         
         if user_id in last_xp:
             if now - last_xp[user_id] < COOLDOWN:
-                cur.execute("UPDATE users SET total_messages = total_messages + 1, last_message=? WHERE guild_id=? AND user_id=?", (str(datetime.datetime.now()), guild_id, user_id))
+                cur.execute("UPDATE users SET total_messages = total_messages + 1, last_message=?, display_name=?, username=?, avatar_hash=? WHERE guild_id=? AND user_id=?", (str(datetime.datetime.now()), message.author.display_name, message.author.name, message.author.avatar.key if message.author.avatar else None, guild_id, user_id))
                 conn.commit()
                 conn.close()
                 return
@@ -635,9 +638,12 @@ async def on_message(message):
             total_xp = total_xp + ?,
             last_message = ?,
             total_messages_xp = total_messages_xp + 1,
-            total_messages = total_messages + 1
+            total_messages = total_messages + 1,
+            avatar_hash = ?,
+            username = ?,
+            display_name = ?
         WHERE guild_id=? AND user_id=?
-        """, (xp, xp, str(datetime.datetime.now()), guild_id, user_id))
+        """, (xp, xp, str(datetime.datetime.now()), message.author.avatar.key if message.author.avatar else None, message.author.name, message.author.display_name, guild_id, user_id))
         conn.commit()
         user = cur.execute("SELECT * FROM users WHERE guild_id=? AND user_id=?", (guild_id, user_id)).fetchone()
         progress = user["progress"]
@@ -688,7 +694,7 @@ async def on_message(message):
 @tasks.loop(minutes=1)
 async def qotd():
     now = datetime.datetime.now()
-    if now.hour != 13 or now.minute != 0:
+    if now.hour != 16 or now.minute != 0:
         print(f"{date()} INFO  Not time for QOTD yet. Current time: {now.hour}:{now.minute:02d}/13:00 - sleeping...")
         return
 
@@ -793,6 +799,7 @@ if __name__ == "__main__":
         total_messages INTEGER,
         total_messages_xp INTEGER,
         total_xp INTEGER,
+        avatar_hash TEXT,
         PRIMARY KEY (guild_id, user_id)
     )
     """)

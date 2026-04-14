@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}404 Not Found{% endblock %}
+
+{% block content %}
+<section class="error-page">
+    <h1 class="error-code">404</h1>
+    <p class="error-message">This page got lost in the void</p>
+    <p id="reason" class="error-reason">loading...</p>
+    
+    <div style="margin-top: 2rem;">
+        <a href="/" class="btn btn-primary">Go Home</a>
+    </div>
+</section>
+
+<script>
+fetch("https://naas.isalman.dev/no")
+    .then(r => r.json())
+    .then(d => {
+        setTimeout(() => {
+            document.getElementById("reason").textContent = d.reason || "The void swallowed this page";
+        }, 500);
+    })
+    .catch(() => {
+        document.getElementById("reason").textContent = "The void swallowed this page";
+    });
+</script>
+{% endblock %}

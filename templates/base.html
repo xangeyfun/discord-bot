@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <title>{% block title %}Voidwave{% endblock %} | Voidwave</title>
+        <meta name="title" content="Voidwave">
+        <meta name="description" content="A modern Discord leveling experience. Clean, fast, and slightly chaotic.">
+        
+        {% block og_tags %}
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="https://voidwave.xangey.dev/">
+        <meta property="og:title" content="Voidwave">
+        <meta property="og:description" content="A modern Discord leveling experience. Clean, fast, and slightly chaotic.">
+        <meta property="og:image" content="https://voidwave.xangey.dev/static/images/og.png">
+        {% endblock %}
+        
+        <meta name="theme-color" content="#8438fc">
+        <meta name="twitter:card" content="summary_large_image">
+        
+        <link rel="icon" href="{{ url_for('static', filename='images/favicon.png') }}" type="image/x-icon">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+        
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    </head>
+    <body>
+        <nav class="navbar">
+            <div class="nav-container">
+                <a href="{{ url_for('index') }}" class="nav-logo">
+                    <img src="/static/images/favicon.png" alt="◇" class="logo-icon" style="width: 26px; height: 26px;">
+                    <span class="logo-text">Voidwave</span>
+                </a>
+                <div class="nav-links">
+                    <a href="/" class="nav-link">Home</a>
+                    <a href="/leaderboard" class="nav-link">Leaderboard</a>
+                    <a href="https://github.com/xangeyfun/discord-bot" target="_blank" class="nav-link">GitHub</a>
+                    <a href="https://discord.com/oauth2/authorize?client_id=1442229230384709752" target="_blank" class="nav-link btn-invite">Invite</a>
+                </div>
+                <button class="nav-toggle" aria-label="Toggle menu">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </nav>
+        
+        <main class="main-content">
+            {% block content %}{% endblock %}
+        </main>
+        
+        <footer class="footer">
+            <div class="footer-container">
+                <div class="footer-brand">
+                    <img src="/static/images/favicon.png" alt="◇" class="logo-icon" style="width: 26px; height: 26px;">
+                    <span>Voidwave</span>
+                </div>
+                <div class="footer-links">
+                    <a href="/terms">Terms</a>
+                    <a href="/privacy">Privacy</a>
+                    <a href="https://discord.gg/tyQksBReAS" target="_blank">Support</a>
+                </div>
+                <div class="footer-copy">
+                    Made with ♥ by <a href="https://xangey.dev" target="_blank">xangey</a>
+                </div>
+            </div>
+        </footer>
+        
+        <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    </body>
+</html>
