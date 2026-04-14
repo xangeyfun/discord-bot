@@ -43,7 +43,7 @@
                         else 'https://cdn.discordapp.com/embed/avatars/0.png'
                     }}" alt="" style="width: 45px; height: 45px; border-radius: 50%;">
                 </div>
-                <span class="user-name">{{ entry.username }}</span>
+                <span class="user-name"><a href="/stats/{{ entry.guild_id }}/{{ entry.user_id }}" target="_blank">{{ entry.username }}</a></span>
             </div>
             <span class="stat-cell">{{ entry.level }}</span>
             <span class="stat-cell">{{ entry.total_xp|int }}</span>

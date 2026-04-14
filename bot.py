@@ -531,7 +531,7 @@ async def fact(interaction: discord.Interaction, sort: str, global_lb: bool = Fa
         line = f"{rank} **{username}** | `{level}`{server_name}"
         lines.append(line)
 
-    embed.description = "\n".join(lines) if lines else "no data yet :("
+    embed.description = "\n".join(lines) + "\n\n**View online:** [Leaderboard](https://voidwave.xangey.dev/leaderboard)" if lines else "no data yet :("
 
     embed.set_footer(
         text=f"{interaction.guild.name if interaction.guild and not global_lb else 'Global'} Leaderboard • {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
