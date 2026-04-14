@@ -23,7 +23,7 @@ intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents, status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.watching, name="/help | VoidWave"))
 TOKEN = os.getenv("TOKEN")
 allowed_user = os.getenv("ALLOWED_USER_ID")
-guild = discord.Object(id=int(os.getenv("GUILD_ID")))
+guild = discord.Object(id=int(os.getenv("GUILD_ID"))) # type: ignore
 COOLDOWN = 30
 last_xp = {}
 LEVEL_ROLES = {
@@ -320,7 +320,7 @@ async def uptime(interaction: discord.Interaction):
     app_commands.Choice(name="Today", value="Today"),
     app_commands.Choice(name="Random", value="Random")
 ])
-async def fact(interaction: discord.Interaction, choice: str, hidden: bool = False):
+async def get_fact(interaction: discord.Interaction, choice: str, hidden: bool = False):
     await interaction.response.defer(ephemeral=hidden)
     if choice.lower() != "today" and choice.lower() != "random":
         await interaction.followup.send(f"> Invalid input: {choice}", ephemeral=True)
@@ -376,7 +376,7 @@ async def level(interaction: discord.Interaction, hidden: bool = False, user: di
 
     await interaction.response.defer(ephemeral=hidden)
 
-    user = user or interaction.user  # type: ignore
+    user = user or interaction.user # type: ignore
 
     try:
         conn = get_db()
@@ -384,12 +384,12 @@ async def level(interaction: discord.Interaction, hidden: bool = False, user: di
 
         data = cur.execute(
             "SELECT * FROM users WHERE guild_id=? AND user_id=?",
-            (interaction.guild.id, user.id)
+            (interaction.guild.id, user.id) # type: ignore
         ).fetchone()
 
         if not data:
             await interaction.followup.send(
-                f"{user.display_name}'s data file was not found! Try sending a message to create one.",
+                f"{user.display_name}'s data file was not found! Try sending a message to create one.", # type: ignore
                 ephemeral=hidden
             )
             conn.close()
@@ -427,7 +427,7 @@ async def level(interaction: discord.Interaction, hidden: bool = False, user: di
         extra = "\n🔥 almost leveling up!"
 
     embed = discord.Embed(
-        title=f"{user.display_name}'s Level",
+        title=f"{user.display_name}'s Level", # type: ignore
         color=discord.Color(0x7128fc)
     )
 
@@ -443,12 +443,12 @@ async def level(interaction: discord.Interaction, hidden: bool = False, user: di
             f"**Total XP:** `{data['total_xp']:,}`\n"
             f"**Messages (XP):** `{data['total_messages_xp']:,}`\n"
             f"**Total Messages:** `{data['total_messages']:,}`\n\n"
-            f"**View online:** [Dashboard](https://voidwave.xangey.dev/stats/{interaction.guild.id}/{user.id})"
+            f"**View online:** [Dashboard](https://voidwave.xangey.dev/stats/{interaction.guild.id}/{user.id})" # type: ignore
         ),
         inline=False
     )
 
-    embed.set_thumbnail(url=user.display_avatar.url)
+    embed.set_thumbnail(url=user.display_avatar.url) # type: ignore
 
     embed.set_footer(
         text=f"{interaction.guild.name} • {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
@@ -724,13 +724,13 @@ async def qotd():
     if last_qotd_thread_id:
         try:
             thread = await bot.fetch_channel(last_qotd_thread_id)
-            await thread.delete()
+            await thread.delete() # type: ignore
         except Exception as e:
             print(f"{date()} ERROR  Failed to delete old QOTD thread: {e}")
 
     if last_qotd_id:
         try:
-            old_msg = await channel.fetch_message(last_qotd_id)
+            old_msg = await channel.fetch_message(last_qotd_id) # type: ignore
             await old_msg.delete()
         except Exception as e:
             print(f"{date()} ERROR  Failed to delete old QOTD message: {e}")
@@ -749,7 +749,7 @@ async def qotd():
     embed.set_footer(text="New question every day • Powered by ZenQuotes")
 
     # send message & ping role
-    msg = await channel.send(embed=embed)
+    msg = await channel.send(embed=embed) # type: ignore
 
     # create thread
     thread = await msg.create_thread(

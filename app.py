@@ -18,7 +18,7 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
-def get_user_stats(user_id: int, guild_id: int) -> dict:
+def get_user_stats(user_id: int, guild_id: int):
     try:
         conn = get_db()
         cur = conn.cursor()
@@ -54,7 +54,7 @@ def get_user_stats(user_id: int, guild_id: int) -> dict:
         print(f"Error fetching user stats: {e}")
         return None
 
-def get_leaderboard(guild_id: int = None, sort_by: str = 'level', direction: str = 'desc', page: int = 1, per_page: int = 10) -> tuple:
+def get_leaderboard(guild_id: int = 0, sort_by: str = 'level', direction: str = 'desc', page: int = 1, per_page: int = 10):
     try:
         conn = get_db()
         cur = conn.cursor()
