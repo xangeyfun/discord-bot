@@ -42,17 +42,13 @@ Mention {username} only if natural.
     except Exception as e:
         print("Something went wrong...")
         reply = f"Something went wrong...\n> {e}\n> Response content: {r.text}"
+        data = {}
 
     reply = reply.strip()
     tokens = data.get('tokens_predicted', 0)
-    gen_ms = data.get('generation_time_ms', 0)
-
-    if gen_ms > 0:
-        tps = tokens / (gen_ms / 1000)
-    else:
-        tps = 0
-
     total_time = time.time() - start
+
+    tps = tokens / total_time 
 
     info = f"(Tokens: {tokens}, Time: {total_time:.2f}s, TPS: {tps:.2f})"
     return reply, info
