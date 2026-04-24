@@ -1037,7 +1037,14 @@ async def on_message(message):
             return
         try:
             async with message.channel.typing():
-                reply, info = await asyncio.to_thread(ask_llm, msg, message.author.display_name)
+                reply_info = None
+                if message.reference and message.reference.message_id:
+                    replied_msg = await message.channel.fetch_message(message.reference.message_id)
+                    reply_info = {
+                        "author": replied_msg.author.display_name,
+                        "content": replied_msg.content
+                    }
+                reply, info = await asyncio.to_thread(ask_llm, msg, message.author.display_name, reply_info)
         except Exception as e:
             reply = "Error occurred while fetching LLM response. Please try again later."
             info = e

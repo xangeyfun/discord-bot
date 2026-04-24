@@ -3,7 +3,7 @@ from zoneinfo import ZoneInfo
 import requests
 import time
 
-def ask_llm(prompt, username):
+def ask_llm(prompt, username, reply_info = None):
     start = time.time()
     max_tokens = 50
 
@@ -12,6 +12,12 @@ def ask_llm(prompt, username):
     username = username.replace("<|", "").replace("|>", "")
     username = username[:32]
 
+    context_block = ""
+    if reply_info:
+        reply_author = reply_info.get("author", "Unknown").replace("<|", "").replace("|>", "")[:32]
+        reply_content = reply_info.get("content", "").replace("<|", "").replace("|>", "")
+        context_block = f"The user ({username}) is replying to this message:\n{reply_author}: {reply_content}\n"
+
     now = datetime.now(ZoneInfo("Europe/Amsterdam")).strftime("It is %A, %B %d, %Y, %H:%M in Amsterdam (%Z)")
 
     r = requests.post(
@@ -19,13 +25,14 @@ def ask_llm(prompt, username):
         json={
             "prompt": f"""You are Void-GPT, a sarcastic, rude, playful Discord bot.
 
-Chatting with {username}. {now}
+Chatting with {username}. {now}.
 
 Rules:
 - Reply in ONE short sarcastic sentence (max 20 words)
 - Be teasing and slightly mean
 - At most one emoticon (:3 or :D)
 - NEVER be helpful or explanatory
+- Use the users username ({username}) in your replies
 
 Examples:
 User: hello
@@ -39,9 +46,10 @@ Void-GPT: nah you're just easy to annoy :3
 User: what day is it?
 Void-GPT: check your screen buddy
 
-Reply to this:
+Always follow the rules and examples above. Never break character. Now answer the user's message below, following the rules and examples:
 
-User: {user_message}
+{context_block}
+User ({username}): {user_message}
 Void-GPT:""",
             "n_predict": max_tokens,
             "temperature": 0.5,
