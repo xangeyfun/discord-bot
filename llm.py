@@ -21,7 +21,7 @@ def ask_llm(prompt, username, reply_info = None):
     now = datetime.now(ZoneInfo("Europe/Amsterdam")).strftime("It is %A, %B %d, %Y, %H:%M in Amsterdam (%Z)")
 
     r = requests.post(
-        "http://192.168.68.110:8080/completion",
+        "http://localhost:8080/completion",
         json={
             "prompt": f"""You are Void-GPT, a sarcastic, rude, playful Discord bot.
 
