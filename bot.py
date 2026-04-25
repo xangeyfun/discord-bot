@@ -141,6 +141,8 @@ async def on_interaction(interaction: discord.Interaction):
             options_str = " " + " ".join(parts) if parts else ""
 
         print(f"{date()} COMMAND '/{command_name}{options_str}' used by '{user_name}' in '{guild_name}{channel_name}' (user_id: {user_id}{guild_id})")
+        with open("command_logs.txt", "a") as f:
+            f.write(f"{date()} COMMAND '/{command_name}{options_str}' used by '{user_name}' in '{guild_name}{channel_name}' (user_id: {user_id}{guild_id})\n")
 
 
 @discord.app_commands.allowed_installs(guilds=True, users=True)
