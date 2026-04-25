@@ -108,7 +108,10 @@ async def on_ready():
     print(f"{date()} DEBUG  Connected to {total_guilds} guilds ({total_members} members)")
     print(f"{date()} DEBUG  Synced {len(synced)} slash commands in {sync_time}")
     print(f"{date()} DEBUG  Startup time: {done - startup:.4f} seconds")
-    print(f"{date()} INFO ---------------------\n")
+    print(f"{date()} INFO ----------------------\n")
+    for guild in bot.guilds:
+        print(f"{date()} INFO  {guild.name:<30} | {guild.id:<20} | {str(guild.owner):<20} [{guild.owner_id:<20}] | {guild.member_count:<5} members")
+    print(f"{date()} INFO ----------------------\n")
     qotd.start()
 
 @bot.event
@@ -140,6 +143,8 @@ async def on_interaction(interaction: discord.Interaction):
         print(f"{date()} COMMAND '/{command_name}{options_str}' used by '{user_name}' in '{guild_name}{channel_name}' (user_id: {user_id}{guild_id})")
 
 
+@discord.app_commands.allowed_installs(guilds=True, users=True)
+@discord.app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @bot.tree.command(name="help", description="Get help about the bot.") #, guild=guild)
 async def help_command(interaction: discord.Interaction):
     help_text = (
@@ -166,10 +171,15 @@ async def help_command(interaction: discord.Interaction):
     )
     await interaction.response.send_message(help_text, ephemeral=True)
 
+
+@discord.app_commands.allowed_installs(guilds=True, users=True)
+@discord.app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @bot.tree.command(name="ping", description="Test the bot's latency.") #, guild=guild)
 async def ping(interaction: discord.Interaction):
     await interaction.response.send_message(f"> Pong! {round(bot.latency * 1000)}ms :ping_pong:", ephemeral=True)
 
+@discord.app_commands.allowed_installs(guilds=True, users=True)
+@discord.app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @bot.tree.command(name="calc", description="Simple calculator") #, guild=guild)
 @app_commands.describe(expression="an expression like 5*2+3")
 async def calc(interaction: Interaction, expression: str):
@@ -183,6 +193,8 @@ async def calc(interaction: Interaction, expression: str):
     except Exception as e:
         await interaction.response.send_message(f"> Error evaluating expression: {e}", ephemeral=True)
 
+@discord.app_commands.allowed_installs(guilds=True, users=True)
+@discord.app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @bot.tree.command(name="flip", description="Flip a coin.") #, guild=guild)
 @app_commands.describe(hidden="Hide the command from others")
 async def flip(interaction: Interaction, hidden: bool = False):
@@ -191,10 +203,14 @@ async def flip(interaction: Interaction, hidden: bool = False):
     else:
         await interaction.response.send_message("> " + random.choice(["Heads!", "Tails!"]))
 
+@discord.app_commands.allowed_installs(guilds=True, users=True)
+@discord.app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @bot.tree.command(name="github", description="Find the code on github!") #, guild=guild)
 async def github(interaction: discord.Interaction):
     await interaction.response.send_message("Bot made by `xangey` (<@996771607630585856>)\n> <https://github.com/xangeyfun/discord-bot>\n> <https://voidwave.xangey.dev/>", ephemeral=True, allowed_mentions=discord.AllowedMentions(users=False))
 
+@discord.app_commands.allowed_installs(guilds=True, users=True)
+@discord.app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @bot.tree.command(name="rps", description="Rock Paper Scissors") #, guild=guild)
 @app_commands.describe(hand="Rock / Paper / Scissors", hidden="Hide the command from others")
 @app_commands.choices(hand=[
@@ -223,6 +239,8 @@ async def rps(interaction: Interaction, hand: str, hidden: bool = False):
     else:
         await interaction.response.send_message(f"> :robot: {bot_choice.capitalize()}  -  :bust_in_silhouette: {hand.capitalize()}\n> {result}")
 
+@discord.app_commands.allowed_installs(guilds=True, users=True)
+@discord.app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @bot.tree.command(name="random", description="Random number generator") #, guild=guild)
 @app_commands.describe(a="Lowest number", b="Highest number", hidden="Hide the command from others")
 async def random_number(interaction: Interaction, a: int, b: int, hidden: bool = False):
@@ -235,6 +253,8 @@ async def random_number(interaction: Interaction, a: int, b: int, hidden: bool =
     else:
         await interaction.response.send_message(f"> Result: {result}")
 
+@discord.app_commands.allowed_installs(guilds=True, users=False)
+@discord.app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
 @bot.tree.command(name="userinfo", description="Get info about a user") #, guild=guild)
 @app_commands.describe(user="The user you want info about", hidden="Hide the command from others")
 async def userinfo(interaction: discord.Interaction, user: discord.Member, hidden: bool = False):
@@ -254,6 +274,8 @@ async def userinfo(interaction: discord.Interaction, user: discord.Member, hidde
     else:
         await interaction.response.send_message(embed=embed)
 
+@discord.app_commands.allowed_installs(guilds=True, users=True)
+@discord.app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @bot.tree.command(name="quote", description="Get a quote") #, guild=guild)
 @app_commands.describe(choice='"Today" or "Random"', hidden="Hide the command from others")
 @app_commands.choices(choice=[
@@ -277,6 +299,8 @@ async def quote(interaction: discord.Interaction, choice: str, hidden: bool = Fa
     else:
         await interaction.followup.send(f"> \"{data[0]['q']}\" - {data[0]['a']}")
 
+@discord.app_commands.allowed_installs(guilds=True, users=True)
+@discord.app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @bot.tree.command(name="meme", description="Get a random meme") #, guild=guild)
 @app_commands.describe(subreddit="Subreddit to get meme from (optional)", hidden="Hide the command from others")
 async def meme(interaction: discord.Interaction, subreddit: str | None = None, hidden: bool = False):
@@ -306,6 +330,8 @@ async def meme(interaction: discord.Interaction, subreddit: str | None = None, h
     else:
         await interaction.followup.send(embed=embed)
 
+@discord.app_commands.allowed_installs(guilds=True, users=True)
+@discord.app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @bot.tree.command(name="duck", description="Get a random duck picture") #, guild=guild)
 @app_commands.describe(hidden="Hide the command from others")
 async def duck(interaction: discord.Interaction, hidden: bool = False):
@@ -327,6 +353,8 @@ async def duck(interaction: discord.Interaction, hidden: bool = False):
     else:
         await interaction.followup.send(embed=embed)
 
+@discord.app_commands.allowed_installs(guilds=True, users=True)
+@discord.app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @bot.tree.command(name="fox", description="Get a random fox picture") #, guild=guild)
 @app_commands.describe(hidden="Hide the command from others")
 async def fox(interaction: discord.Interaction, hidden: bool = False):
@@ -348,6 +376,8 @@ async def fox(interaction: discord.Interaction, hidden: bool = False):
     else:
         await interaction.followup.send(embed=embed)
 
+@discord.app_commands.allowed_installs(guilds=True, users=True)
+@discord.app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @bot.tree.command(name="uptime", description="Check the bot's uptime.") #, guild=guild)
 async def uptime(interaction: discord.Interaction):
     current_time = time.time()
@@ -357,6 +387,8 @@ async def uptime(interaction: discord.Interaction):
     uptime_str = f"{hours}h {minutes}m {seconds}s"
     await interaction.response.send_message(f"⏱️ **Bot Uptime**\n> {uptime_str}\n\n🔗 Status Page: <https://status.xangey.dev/>", ephemeral=True)
 
+@discord.app_commands.allowed_installs(guilds=True, users=True)
+@discord.app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @bot.tree.command(name="fact", description="Get a daily fact.") #, guild=guild)
 @app_commands.describe(hidden="Hide the command from others", choice='"Today" or "Random"')
 @app_commands.choices(choice=[
@@ -380,6 +412,8 @@ async def get_fact(interaction: discord.Interaction, choice: str, hidden: bool =
     else:
         await interaction.followup.send(f"> {data['text']}")
 
+@discord.app_commands.allowed_installs(guilds=True, users=True)
+@discord.app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @bot.tree.command(name="dog", description="Get a random dog picture") #, guild=guild)
 @app_commands.describe(hidden="Hide the command from others")
 async def dog(interaction: discord.Interaction, hidden: bool = False):
@@ -410,6 +444,8 @@ async def shutdown(interaction: discord.Interaction):
     print(f"{date()} INFO  Shutdown command issued by {interaction.user.name} (ID: {interaction.user.id})")
     await bot.close()
 
+@discord.app_commands.allowed_installs(guilds=True, users=False)
+@discord.app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
 @bot.tree.command(name="level", description="Check your server level")
 @app_commands.describe(hidden="Hide the command from others", user='Select a user to view their level')
 async def level(interaction: discord.Interaction, hidden: bool = False, user: discord.Member | None = None):
@@ -506,6 +542,8 @@ async def level(interaction: discord.Interaction, hidden: bool = False, user: di
         allowed_mentions=discord.AllowedMentions(users=False)
     )
 
+@discord.app_commands.allowed_installs(guilds=True, users=False)
+@discord.app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
 @bot.tree.command(name="leaderboard", description="Check the server level leaderboard") #, guild=guild)
 @app_commands.describe(hidden="Hide the command from others", sort='What to sort by', global_lb='Show global leaderboard')
 @app_commands.choices(
