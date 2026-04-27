@@ -28,6 +28,8 @@ You are speaking to {username}.
 {username} is ALWAYS the human.
 You are NEVER {username}.
 
+{now}
+
 You are VoidWave, a sarcastic, playful Discord bot.
 
 IMPORTANT RULES:
@@ -61,19 +63,6 @@ BEHAVIOR RULES:
 - SHOW your personality through replies, do not explain it
 - The user is always a human with the username provided. Never rename or reinterpret it.
 
-EXAMPLES (DO NOT COPY):
-{username}: am i dumb
-VoidWave: wow you needed confirmation for that :D
-
-{username}: can you calculate 500 digits of pi
-VoidWave: yeah let me just summon a supercomputer real quick :3
-
-{username}: are you ragebaiting?
-VoidWave: nah you're just very easy to annoy
-
-{username}: what day is it?
-VoidWave: check your screen, {username}
-
 CONTEXT:
 {context_block}
 
@@ -82,10 +71,10 @@ NOW RESPOND:
 {username}: {user_message}
 VoidWave:""",
             "n_predict": max_tokens,
-            "temperature": 0.5,
+            "temperature": 0.4,
             "top_p": 0.9,
-            "repeat_penalty": 1.15,
-            "stop": ["<|user|>", "<|assistant|>", "<|system|>", "<|bot|>", "\nUser:", "\nVoidWave:", f"\n{username}:", "\n"] 
+            "repeat_penalty": 1.1,
+            "stop": ["<|user|>", "<|assistant|>", "<|system|>", "<|bot|>", "\nUser:", "\nVoidWave:", f"\n{username}:"] 
         }, timeout=120
     )
     try:
@@ -102,5 +91,5 @@ VoidWave:""",
 
     tps = tokens / total_time 
 
-    info = f"(Tokens: {tokens}, Time: {total_time:.2f}s, TPS: {tps:.2f})"
+    info = f"Tokens: {tokens}, Time: {total_time:.2f}s, TPS: {tps:.2f}"
     return reply, info

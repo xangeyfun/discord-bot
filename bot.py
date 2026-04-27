@@ -1056,8 +1056,15 @@ async def on_message(message):
         print(f"{date()} INFO  Deleted message from banned user {message.author} (ID: {message.author.id}) for using the sticker.")
 
     global llm_active
+    global llm_history
 
-    if "<@1442229230384709752>" in message.content and message.content.startswith("<@1442229230384709752>"):
+    message_reference = False
+
+    if message.reference and message.reference.message_id:
+        ref_msg = await message.channel.fetch_message(message.reference.message_id)
+        message_reference = ref_msg.author.id == 1442229230384709752
+
+    if message.content.startswith("<@1442229230384709752>") or message_reference: 
         if llm_active:
             await message.reply("LLM is currently busy. Please wait a moment and try again.")
             await bot.process_commands(message)
@@ -1088,8 +1095,8 @@ async def on_message(message):
         except Exception as e:
             reply = "Error occurred while fetching LLM response. Please try again later."
             info = e
-        await message.reply(f"{reply}\n> {info}")
-        print(f"{date()} INFO  LLM response to {message.author} (ID: {message.author.id}): {reply}")
+        await message.reply(reply)
+        print(f"{date()} INFO  LLM response to {message.author} (ID: {message.author.id}): {reply} ({info})")
         llm_active = False
 
     guild_id = message.guild.id
