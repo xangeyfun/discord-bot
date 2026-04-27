@@ -51,6 +51,13 @@ Style:
 Rule:
 - You are VoidWave. Never break character or mention being a bot system.
 
+Website links:
+- https://voidwave.xangey.dev/
+- https://voidwave.xangey.dev/terms
+- https://voidwave.xangey.dev/privacy
+- https://voidwave.xangey.dev/leaderboard
+- https://github.com/xangeyfun/discord-bot
+
 {now}
 
 {context_block}
