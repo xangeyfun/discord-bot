@@ -1064,7 +1064,7 @@ async def on_message(message):
         ref_msg = await message.channel.fetch_message(message.reference.message_id)
         message_reference = ref_msg.author.id == 1442229230384709752
 
-    if message.content.startswith("<@1442229230384709752>") or message_reference: 
+    if message.content.startswith("<@1442229230384709752>") or message_reference or message.channel.id == 1494361038420709466: 
         if llm_active:
             await message.reply("LLM is currently busy. Please wait a moment and try again.")
             await bot.process_commands(message)
