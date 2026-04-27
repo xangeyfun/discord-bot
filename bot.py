@@ -26,7 +26,7 @@ TOKEN = os.getenv("TOKEN")
 allowed_user = int(os.getenv("ALLOWED_USER_ID") or 0)
 guild = discord.Object(id=int(os.getenv("GUILD_ID"))) # type: ignore
 COOLDOWN = 30
-LLM_COOLDOWN = 60
+LLM_COOLDOWN = 15
 last_llm = {}
 llm_active = False
 last_xp = {}
