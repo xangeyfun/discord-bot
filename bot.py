@@ -82,7 +82,7 @@ def format_seconds(seconds):
 
     return " ".join(parts)
 
-async def get_llm_response(msg, display_name, reply_info):
+async def get_llm_response(msg, display_name, reply_info = None):
     for attempt in range(5):
         reply, info = await asyncio.to_thread(ask_llm, msg, display_name, reply_info)
 
@@ -637,6 +637,30 @@ async def fact(interaction: discord.Interaction, sort: str, global_lb: bool = Fa
 
     conn.close()
     await interaction.followup.send(embed=embed, ephemeral=hidden)
+
+@discord.app_commands.allowed_installs(guilds=True, users=True)
+@discord.app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@bot.tree.command(name="ai", description="Chat with the bot using AI (powered by Llama 3.2)") #, guild=guild)
+@app_commands.describe(prompt="What do you want to say to the bot?", stats="Show LLM statistics", hidden="Hide the command from others")
+async def ai(interaction: Interaction, prompt: str, stats: bool = False, hidden: bool = False):
+    global llm_active, last_llm
+    await interaction.response.defer(ephemeral=hidden)
+
+    if llm_active:
+        return await interaction.followup.send("LLM is currently busy. Please wait a moment and try again.")
+
+    if interaction.user.id in last_llm and time.time() - last_llm[interaction.user.id] < LLM_COOLDOWN and interaction.user.id != 996771607630585856:
+        return await interaction.followup.send(f"Please wait before using the LLM again. Cooldown: `{LLM_COOLDOWN - (time.time() - last_llm[interaction.user.id]):.1f} seconds left.`")
+
+    llm_active = True
+    last_llm[interaction.user.id] = time.time()
+    response, info = await get_llm_response(prompt, interaction.user.display_name) 
+    llm_active = False
+
+    if stats:
+        response += f"\n> {info}"
+    
+    await interaction.followup.send(f"{response}", ephemeral=hidden)
     
 # Economy
 
