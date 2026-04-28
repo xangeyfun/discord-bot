@@ -2,60 +2,54 @@
 
 {% block title %}Home{% endblock %}
 
+{% block meta_description %}Modern Discord bot with leveling system, fun commands, and LLM chat. Clean, fast, slightly chaotic.{% endblock %}
+
+{% block og_tags %}
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Voidwave">
+<meta property="og:url" content="https://voidwave.xangey.dev/">
+<meta property="og:title" content="Voidwave - Discord Bot">
+<meta property="og:description" content="Leveling system, fun commands, and LLM chat (Llama 3.2) for Discord.">
+<meta property="og:image" content="https://voidwave.xangey.dev/static/images/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+{% endblock %}
+
 {% block content %}
 <section class="hero">
-    <!-- <img src="/static/images/favicon.png" alt="◇" class="hero-logo" style="width: 128px; height: 128px;"> -->
     <h1>Voidwave</h1>
-    <p class="tagline">A modern Discord leveling system. Clean, fast, and slightly chaotic.</p>
-    
+    <p class="tagline">Modern Discord bot. Clean, fast, slightly chaotic.</p>
+
     <div class="hero-buttons">
         <a href="https://discord.com/oauth2/authorize?client_id=1442229230384709752" target="_blank" class="btn btn-primary">
             <span>Add to Discord</span>
         </a>
-        <a href="https://github.com/xangeyfun/discord-bot" target="_blank" class="btn btn-secondary">
-            <span>GitHub</span>
-        </a>
         <a href="/leaderboard" class="btn btn-secondary">
             <span>Leaderboard</span>
         </a>
+        <a href="https://github.com/xangeyfun/discord-bot" target="_blank" class="btn btn-secondary">
+            <span>GitHub</span>
+        </a>
     </div>
-    
-    <!-- <div class="features">
-        <div class="feature-card">
-            <div class="feature-icon">⚡</div>
-            <h3>Fast & Lightweight</h3>
-            <p>Designed to be minimal and efficient. Won't slow down your server.</p>
-        </div>
-        
+
+    <div class="features">
         <div class="feature-card">
             <div class="feature-icon">📊</div>
-            <h3>XP & Levels</h3>
-            <p>Earn experience by chatting. Level up to unlock roles and rewards.</p>
+            <h3>Leveling</h3>
+            <p>Earn XP by chatting. Unlock roles and climb the leaderboard.</p>
         </div>
-        
+
         <div class="feature-card">
-            <div class="feature-icon">🏆</div>
-            <h3>Leaderboards</h3>
-            <p>Compete with friends. Global and server-specific rankings.</p>
+            <div class="feature-icon">🤖</div>
+            <h3>LLM Chat</h3>
+            <p>Chat with Llama 3.2 powered assistant directly in Discord.</p>
         </div>
-        
-        <div class="feature-card">
-            <div class="feature-icon">🎯</div>
-            <h3>Slash Commands</h3>
-            <p>Modern Discord UX. Use /level, /leaderboard, and more.</p>
-        </div>
-        
+
         <div class="feature-card">
             <div class="feature-icon">🎮</div>
             <h3>Fun Commands</h3>
-            <p>Calculator, quotes, memes, random stuff. Keep it interesting.</p>
+            <p>Calculator, memes, quotes, games. Keep your server entertained.</p>
         </div>
-        
-        <div class="feature-card">
-            <div class="feature-icon">🔒</div>
-            <h3>Privacy First</h3>
-            <p>We store only what we need. No selling or sharing data.</p>
-        </div>
-    </div> -->
+    </div>
 </section>
 {% endblock %}

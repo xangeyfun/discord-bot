@@ -136,23 +136,20 @@ def stats(guild_id: int, user_id: int):
 
 @app.route('/leaderboard')
 def leaderboard():
-    sort_by = request.args.get('sort', 'level')
-    direction = request.args.get('dir', 'desc')
-    page = request.args.get('page', 1, type=int)
-    per_page = 10
-    
-    leaderboard_data, total = get_leaderboard(sort_by=sort_by, direction=direction, page=page, per_page=per_page)
-    
-    total_pages = (total + per_page - 1) // per_page if total > 0 else 1
-    
-    return render_template('leaderboard.html',
-        leaderboard=leaderboard_data,
-        sort_by=sort_by,
-        direction=direction,
-        page=page,
-        per_page=per_page,
-        total_pages=total_pages
-    ), 200
+    entries, total = get_leaderboard(sort_by='level', per_page=10000)
+    leaderboard_list = []
+    for i, entry in enumerate(entries, 1):
+        leaderboard_list.append({
+            'rank': i,
+            'user_id': entry['user_id'],
+            'username': entry['username'],
+            'avatar_hash': entry['avatar_hash'],
+            'guild_id': entry['guild_id'],
+            'level': entry['level'],
+            'total_xp': entry['total_xp'],
+            'total_messages': entry['total_messages']
+        })
+    return render_template('leaderboard.html', leaderboard=leaderboard_list, total=total), 200
 
 @app.errorhandler(404)
 def page_not_found(e):

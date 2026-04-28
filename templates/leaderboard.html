@@ -2,23 +2,32 @@
 
 {% block title %}Leaderboard{% endblock %}
 
+{% block og_tags %}
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Voidwave">
+<meta property="og:url" content="https://voidwave.xangey.dev/leaderboard">
+<meta property="og:title" content="Voidwave Leaderboard">
+<meta property="og:description" content="See who's on top. Global Discord leveling leaderboard.">
+<meta property="og:image" content="https://voidwave.xangey.dev/static/images/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+{% endblock %}
+
 {% block content %}
 <section class="leaderboard-page">
     <div class="leaderboard-header">
         <h1>Leaderboard</h1>
         <div class="leaderboard-filters">
-            <select class="filter-select" onchange="window.location.href=this.value">
-                <option value="/leaderboard?sort=level&dir=desc" {% if sort_by == 'level' and direction == 'desc' %}selected{% endif %}>Level ↓</option>
-                <option value="/leaderboard?sort=level&dir=asc" {% if sort_by == 'level' and direction == 'asc' %}selected{% endif %}>Level ↑</option>
-                <option value="/leaderboard?sort=total_xp&dir=desc" {% if sort_by == 'total_xp' and direction == 'desc' %}selected{% endif %}>XP ↓</option>
-                <option value="/leaderboard?sort=total_xp&dir=asc" {% if sort_by == 'total_xp' and direction == 'asc' %}selected{% endif %}>XP ↑</option>
-                <option value="/leaderboard?sort=total_messages&dir=desc" {% if sort_by == 'total_messages' and direction == 'desc' %}selected{% endif %}>Messages ↓</option>
-                <option value="/leaderboard?sort=total_messages&dir=asc" {% if sort_by == 'total_messages' and direction == 'asc' %}selected{% endif %}>Messages ↑</option>
-            </select>
+            <button class="filter-btn active" data-sort="level" data-dir="desc">Level ↓</button>
+            <button class="filter-btn" data-sort="level" data-dir="asc">Level ↑</button>
+            <button class="filter-btn" data-sort="total_xp" data-dir="desc">XP ↓</button>
+            <button class="filter-btn" data-sort="total_xp" data-dir="asc">XP ↑</button>
+            <button class="filter-btn" data-sort="total_messages" data-dir="desc">Messages ↓</button>
+            <button class="filter-btn" data-sort="total_messages" data-dir="asc">Messages ↑</button>
         </div>
     </div>
-    
-    <div class="leaderboard-table">
+
+    <div class="leaderboard-table" id="leaderboardTable">
         <div class="leaderboard-row header">
             <span>Rank</span>
             <span>User</span>
@@ -26,50 +35,27 @@
             <span>XP</span>
             <span>Messages</span>
         </div>
-        
+
         {% for entry in leaderboard %}
-        <div class="leaderboard-row {% if (page - 1) * per_page + loop.index == 1 %}top-1{% elif (page - 1) * per_page + loop.index == 2 %}top-2{% elif (page - 1) * per_page + loop.index == 3 %}top-3{% endif %}">
-            <span class="rank {% if (page - 1) * per_page + loop.index == 1 %}rank-1{% elif (page - 1) * per_page + loop.index == 2 %}rank-2{% elif (page - 1) * per_page + loop.index == 3 %}rank-3{% endif %}">
-                {% if (page - 1) * per_page + loop.index == 1 %}🥇
-                {% elif (page - 1) * per_page + loop.index == 2 %}🥈
-                {% elif (page - 1) * per_page + loop.index == 3 %}🥉
-                {% else %}#{{ (page - 1) * per_page + loop.index }}{% endif %}
-            </span>
+        <div class="leaderboard-row" data-level="{{ entry.level }}" data-xp="{{ entry.total_xp }}" data-messages="{{ entry.total_messages }}">
+            <span class="rank">#{{ loop.index }}</span>
             <div class="user-cell">
-                <div class="user-avatar">
-                    <img src="{{
-                        'https://cdn.discordapp.com/avatars/' ~ entry.user_id ~ '/' ~ entry.avatar_hash ~ '.png'
-                        if entry.avatar_hash
-                        else 'https://cdn.discordapp.com/embed/avatars/0.png'
-                    }}" alt="" style="width: 45px; height: 45px; border-radius: 50%;">
-                </div>
-                <span class="user-name"><a href="/stats/{{ entry.guild_id }}/{{ entry.user_id }}" target="_blank">{{ entry.username }}</a></span>
+                <img class="user-avatar" src="{% if entry.avatar_hash %}https://cdn.discordapp.com/avatars/{{ entry.user_id }}/{{ entry.avatar_hash }}.png{% else %}https://cdn.discordapp.com/embed/avatars/0.png{% endif %}" alt="{{ entry.username }}">
+                <span class="user-name"><a href="/stats/{{ entry.guild_id }}/{{ entry.user_id }}">{{ entry.username }}</a></span>
             </div>
-            <span class="stat-cell">{{ entry.level }}</span>
-            <span class="stat-cell">{{ entry.total_xp|int }}</span>
-            <span class="last-cell">{{ entry.total_messages|int }}</span>
+            <span class="stat-cell level-cell">{{ entry.level }}</span>
+            <span class="stat-cell xp-cell">{{ entry.total_xp }}</span>
+            <span class="stat-cell msg-cell">{{ entry.total_messages }}</span>
         </div>
         {% else %}
         <div class="leaderboard-row">
-            <span style="grid-column: 1 / -1; text-align: center; color: var(--text-muted);">No users yet. Start chatting to appear here!</span>
+            <span style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 2rem;">No users yet. Start chatting to appear here!</span>
         </div>
         {% endfor %}
     </div>
-    
-    {% if total_pages > 1 %}
-    <div class="pagination">
-        {% if page > 1 %}
-        <a href="/leaderboard?sort={{ sort_by }}&dir={{ direction }}&page={{ page - 1 }}">&laquo; Prev</a>
-        {% endif %}
-        
-        {% for p in range(1, total_pages + 1) %}
-        <a href="/leaderboard?sort={{ sort_by }}&dir={{ direction }}&page={{ p }}" {% if p == page %}class="active"{% endif %}>{{ p }}</a>
-        {% endfor %}
-        
-        {% if page < total_pages %}
-        <a href="/leaderboard?sort={{ sort_by }}&dir={{ direction }}&page={{ page + 1 }}">Next &raquo;</a>
-        {% endif %}
+
+    <div class="leaderboard-info">
+        <span>Showing {{ leaderboard|length }} of {{ total }} users</span>
     </div>
-    {% endif %}
 </section>
 {% endblock %}

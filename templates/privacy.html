@@ -5,11 +5,11 @@
 {% block content %}
 <section class="legal-page">
     <h1>Privacy Policy</h1>
-    
+
     <p>Last updated: April 2026</p>
-    
+
     <h2>What We Collect</h2>
-    <p>Voidwave collects minimal data to provide its leveling features:</p>
+    <p>Voidwave collects minimal data to provide its features:</p>
     <ul>
         <li><strong>User ID</strong> - Your Discord user identifier</li>
         <li><strong>Guild ID</strong> - The Discord server where you use the bot</li>
@@ -17,22 +17,31 @@
         <li><strong>XP & Level</strong> - Your progress in the leveling system</li>
         <li><strong>Message count</strong> - Total messages sent for XP calculation</li>
     </ul>
-    
+
+    <h2>LLM Chat Feature</h2>
+    <p>When using the LLM chat feature powered by Llama 3.2:</p>
+    <ul>
+        <li>Messages sent to the LLM are processed in real-time by a self-hosted model</li>
+        <li>We do <strong>NOT</strong> store, log, or retain any chat messages or LLM responses</li>
+        <li>No conversation history is saved - each message is stateless</li>
+        <li>The LLM runs locally and does not share data with third parties</li>
+    </ul>
+
     <h2>Why We Collect It</h2>
-    <p>This data is collected solely to provide the Discord leveling functionality:</p>
+    <p>Data is collected solely to provide bot functionality:</p>
     <ul>
         <li>Track your XP and level progression</li>
         <li>Display leaderboards</li>
         <li>Reward level-ups with roles (where configured)</li>
         <li>Show your stats via the /level command</li>
     </ul>
-    
+
     <h2>Data Storage</h2>
-    <p>We store your data in a local database. We do not use third-party analytics or tracking services.</p>
-    
+    <p>We store your data in a local SQLite database. We do not use third-party analytics or tracking services.</p>
+
     <h2>Data Sharing</h2>
     <p>We <strong>do NOT</strong> sell, trade, or share your data with anyone. Your data is used only for bot functionality within Discord servers you join.</p>
-    
+
     <h2>Your Rights</h2>
     <p>You have the right to:</p>
     <ul>
@@ -40,8 +49,8 @@
         <li>Opt out by having the bot removed from a server</li>
         <li>Request a data export (where technically feasible)</li>
     </ul>
-    
+
     <h2>Contact</h2>
-    <p>For data deletion requests or questions, contact <a href="https://discord.gg/xangey" target="_blank">our support server</a> or DM <a href="https://xangey.dev">xangey</a>.</p>
+    <p>For data deletion requests or questions, contact <a href="https://discord.gg/tyQksBReAS" target="_blank">our support server</a> or DM <a href="https://xangey.dev">xangey</a>.</p>
 </section>
 {% endblock %}

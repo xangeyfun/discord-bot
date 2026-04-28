@@ -1094,10 +1094,10 @@ async def on_message(message):
                     }
                 reply, info = await asyncio.to_thread(ask_llm, msg, message.author.display_name, reply_info)
         except Exception as e:
-            reply = "Error occurred while fetching LLM response. Please try again later."
+            reply = f"Error occurred while fetching LLM response. Please try again later.\n> {e}"
             info = e
         if reply.strip() == "":
-            reply = "Error occurred while fetching LLM response. Please try again."
+            reply = "Error occurred while fetching LLM response. Please try again.\n> Empty response"
         llm_active = False
         if message.content.endswith("--stats"):
             reply += f"\n> {info}"
