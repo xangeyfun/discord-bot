@@ -12,7 +12,7 @@ def ask_llm(prompt, username, reply_info = None):
 
     user_message = prompt.replace("<|", "").replace("|>", "")
 
-    username = username.replace("<|", "").replace("|>", "")
+    username = username.replace("@", "").replace("<|", "").replace("|>", "")
     username = username[:32]
 
     context_block = ""
