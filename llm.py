@@ -3,6 +3,9 @@ from zoneinfo import ZoneInfo
 import requests
 import time
 
+def date():
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
 def ask_llm(prompt, username, reply_info = None):
     start = time.time()
     max_tokens = 1000
@@ -50,6 +53,12 @@ Style:
 
 Rule:
 - You are VoidWave. Never break character or mention being a bot system.
+- You must output ONLY ONE message.
+- Never simulate conversation.
+- Never write "{username}:" or "VoidWave:".
+- Do not continue dialogue threads.
+- Respond as a single reply only.
+- Never place emoticons (:3, :D, 😏) on a new line. They must always be part of the same sentence.
 
 Website links:
 - https://voidwave.xangey.dev/
@@ -68,17 +77,18 @@ VoidWave:""",
             "temperature": 0.4,
             "top_p": 0.9,
             "repeat_penalty": 1.1,
-            "stop": ["<|user|>", "<|assistant|>", "<|system|>", "<|bot|>", "\n"] 
+            "stop": ["<|user|>", "<|assistant|>", "<|system|>", "<|bot|>", "\n"]
         }, timeout=120
     )
     try:
         data = r.json()
-        reply = data["content"].strip()
+        reply = data["content"]
     except Exception as e:
         print("Something went wrong...")
         reply = f"Something went wrong...\n> {e}\n> Response content: {r.text}"
         data = {}
 
+    print(f"{date()} INFO  LLM raw response: '{reply}'")
     reply = reply.strip()
     tokens = data.get('tokens_predicted', 0)
     total_time = time.time() - start
