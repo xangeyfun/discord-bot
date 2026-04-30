@@ -250,6 +250,13 @@ a:hover {
     animation: fadeIn 1s ease 0.3s backwards;
 }
 
+.stats {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    margin-bottom: 2rem;
+    animation: fadeIn 1s ease 0.5s backwards;
+}
+
 .hero-buttons {
     display: flex;
     gap: 1rem;

@@ -164,6 +164,7 @@ async def on_ready():
         print(f"{date()} INFO  {guild.name:<30} | {guild.id:<20} | {str(guild.owner):<20} [{guild.owner_id:<20}] | {guild.member_count:<5} members")
     print(f"{date()} INFO ----------------------\n")
     qotd.start()
+    update_stats.start()
     bot.loop.create_task(llm_worker())
 
 @bot.event
@@ -1342,6 +1343,20 @@ Have fun and keep it respectful! ✨
             "last_qotd_thread": thread.id
         }, f)
 
+@tasks.loop(minutes=1)
+async def update_stats():
+    conn = get_db()
+    cur = conn.cursor()
+
+    total_guilds = len(bot.guilds)
+    total_members = sum(guild.member_count or 0 for guild in bot.guilds)
+
+    cur.execute("INSERT INTO bot_stats (total_guilds, total_members) VALUES (?, ?) ON CONFLICT DO UPDATE SET total_guilds=excluded.total_guilds, total_members=excluded.total_members", (total_guilds, total_members))
+
+    conn.commit()
+    conn.close()
+    print(f"{date()} INFO  Updated bot stats: {total_guilds} guilds, {total_members} members")
+
 if __name__ == "__main__":
     # Setup DB
     conn = get_db()
@@ -1381,6 +1396,14 @@ if __name__ == "__main__":
         guild_id INTEGER PRIMARY KEY,
         coin_emoji TEXT DEFAULT "💰",
         currency_name TEXT DEFAULT "coins"
+    )
+    """)
+    conn.commit()
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS bot_stats (
+        total_guilds INTEGER DEFAULT 0,
+        total_members INTEGER DEFAULT 0
     )
     """)
     conn.commit()

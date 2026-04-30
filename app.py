@@ -89,7 +89,12 @@ def get_leaderboard(guild_id: int = 0, sort_by: str = 'level', direction: str = 
 
 @app.route('/')
 def index():
-    return render_template('index.html'), 200
+    conn = get_db()
+    cur = conn.cursor()
+    bot_stats = cur.execute("SELECT * FROM bot_stats").fetchone()
+    conn.close()
+    
+    return render_template('index.html', bot_stats=bot_stats), 200
 
 @app.route('/terms')
 def terms():
