@@ -1351,7 +1351,7 @@ async def update_stats():
     total_guilds = len(bot.guilds)
     total_members = sum(guild.member_count or 0 for guild in bot.guilds)
 
-    cur.execute("INSERT INTO bot_stats (total_guilds, total_members) VALUES (?, ?) ON CONFLICT DO UPDATE SET total_guilds=excluded.total_guilds, total_members=excluded.total_members", (total_guilds, total_members))
+    cur.execute("UPDATE bot_stats SET total_guilds = ?, total_members = ?", (total_guilds, total_members))
 
     conn.commit()
     conn.close()
