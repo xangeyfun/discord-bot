@@ -34,7 +34,6 @@ def ask_llm(prompt, username, user_id, reply_info = None):
     now = datetime.now(ZoneInfo("Europe/Amsterdam")).strftime("It is %A, %B %d, %Y, %H:%M:%s")
 
     prompt = get_prompt("default").format(username=username, now=now, context_block=context_block, user_message=user_message)
-    print(context_block)
     r = requests.post(
         "http://localhost:8080/completion",
         json={
@@ -62,5 +61,5 @@ def ask_llm(prompt, username, user_id, reply_info = None):
     tps = tokens / total_time 
 
     info = f"Tokens: {tokens}, Time: {total_time:.2f}s, TPS: {tps:.2f}"
-    print(prompt)
+
     return reply, info
