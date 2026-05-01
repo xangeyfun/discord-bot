@@ -54,14 +54,20 @@ The bot and web server run independently. The web server reads from the same dat
 
 Type `/help` when the bot's online to see all commands. Here's the basics:
 
+- `/help` - Show bot help
 - `/ping` - Check latency
-- `/level` - Your stats
-- `/leaderboard` - Top users
-- `/ai` - Chat with the bot (AI)
+- `/animal` - Get a random animal picture
 - `/calc` - Math calculator
 - `/flip` - Coin flip
+- `/github` - Show the bot GitHub link
+- `/random` - Random number generator
+- `/userinfo` - Get info about a user
 - `/quote` - Get a quote
-- `/meme` - Random meme
+- `/uptime` - Check bot uptime
+- `/fact` - Get a daily fact
+- `/level` - Your server level and XP
+- `/leaderboard` - Top users leaderboard
+- `/profile` - View your profile
 
 ## Tech
 
