@@ -1,7 +1,7 @@
 from discord import app_commands, Interaction
 from discord.ext import commands, tasks
+from httpx import get
 from simpleeval import simple_eval
-from sympy import total_degree
 from llm import ask_llm, llm_stats
 from dotenv import load_dotenv
 import subprocess
@@ -394,7 +394,8 @@ async def uptime(interaction: discord.Interaction):
     uptime_seconds = int(current_time - startup)
     hours, remainder = divmod(uptime_seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
-    uptime_str = f"{hours}h {minutes}m {seconds}s"
+    days, hours = divmod(hours, 24)
+    uptime_str = f"{days}d {hours}h {minutes}m {seconds}s"
     await interaction.response.send_message(f"⏱️ **Bot Uptime**\n> {uptime_str}\n\n🔗 Status Page: <https://status.xangey.dev/>", ephemeral=True)
 
 @discord.app_commands.allowed_installs(guilds=True, users=True)
@@ -413,6 +414,7 @@ async def debug(interaction: discord.Interaction):
     system_uptime = int(time.time() - psutil.boot_time())
     h, r = divmod(system_uptime, 3600)
     m, s = divmod(r, 60)
+    d, h = divmod(h, 24)
 
     try:
         git_commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode().strip()
@@ -425,7 +427,7 @@ async def debug(interaction: discord.Interaction):
 
     embed.add_field(
         name="⏱️ Server Uptime",
-        value=f"{h}h {m}m {s}s",
+        value=f"{d}d {h}h {m}m {s}s",
         inline=False
     )
 
@@ -737,6 +739,28 @@ async def profile(interaction: discord.Interaction, hidden: bool = False, user: 
     embed.set_footer(text=f"user id: {user.id}")
 
     return await interaction.followup.send(embed=embed, ephemeral=hidden, allowed_mentions=discord.AllowedMentions(users=False))
+
+@discord.app_commands.allowed_installs(guilds=True, users=True)
+@discord.app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@bot.tree.command(name="ai", description="Chat with the bot's LLM (powered by Llama 3.2)") #, guild=guild)
+@app_commands.describe(message="The message to send to the LLM", info="Show additional information about the LLM response", hidden="Hide the command from others")
+async def ai(interaction: discord.Interaction, message: str, stats: bool = False, hidden: bool = False):
+    await interaction.response.defer(ephemeral=hidden)
+
+    if interaction.user.id in last_llm and time.time() - last_llm[interaction.user.id] < LLM_COOLDOWN and interaction.user.id != 996771607630585856:
+        await interaction.followup.send(f"Please wait before using the LLM again. Cooldown: `{LLM_COOLDOWN - (time.time() - last_llm[interaction.user.id]):.1f} seconds left.`", ephemeral=True)
+        return
+
+    if llm_queue.qsize() > 1:
+        await interaction.followup.send(f"The LLM is currently busy. Please try again later. Current queue size: `{llm_queue.qsize()}`", ephemeral=True)
+        return
+    
+    reply, info = await get_llm_response(message, interaction.user.name, interaction.user.id) 
+
+    if stats:
+        reply += f"\n> {info}"
+
+    await interaction.followup.send(reply, ephemeral=hidden)
 
 # Message events
 
