@@ -1,6 +1,7 @@
 from discord import app_commands, Interaction
 from discord.ext import commands, tasks
 from simpleeval import simple_eval
+from sympy import total_degree
 from llm import ask_llm, llm_stats
 from dotenv import load_dotenv
 import subprocess
@@ -365,17 +366,31 @@ async def random_number(interaction: Interaction, a: int, b: int, hidden: bool =
 @discord.app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @bot.tree.command(name="userinfo", description="Get info about a user") #, guild=guild)
 @app_commands.describe(user="The user you want info about", hidden="Hide the command from others")
-async def userinfo(interaction: discord.Interaction, user: discord.User, hidden: bool = False):
-    user = user or bot.get_user(user.id)
+async def userinfo(interaction: discord.Interaction, user: discord.Member | discord.User, hidden: bool = False):
+    roles = []
+    joined_server = "Unknown"
 
-    roles = [role.name for role in user.roles if role.name != "@everyone"] if interaction.guild else []
-    embed = discord.Embed(title=f"{user.name}", color=discord.Color.blue())
+    if isinstance(user, discord.Member):
+        roles = [role.name for role in user.roles if role.name != "@everyone"]
+        joined_server = user.joined_at.strftime("%Y-%m-%d") if user.joined_at else "Unknown"
+
+    embed = discord.Embed(
+        title=user.name,
+        color=discord.Color.blue()
+    )
+
     embed.add_field(name="ID", value=user.id)
-    embed.add_field(name="Account created", value=user.created_at.strftime("%Y-%m-%d") if user.created_at else "Unknown")
-    embed.add_field(name="Joined server", value=user.joined_at.strftime("%Y-%m-%d") if user.joined_at else "Unknown") if interaction.guild else None
-    embed.add_field(name="Roles", value=", ".join(roles) or "None") if interaction.guild else None
-    embed.set_thumbnail(url=user.avatar.url if user.avatar else user.default_avatar.url)
-    embed.set_footer(text=f"Requested by {interaction.user.name} • {datetime.datetime.now()}")
+    embed.add_field(
+        name="Account created",
+        value=user.created_at.strftime("%Y-%m-%d") if user.created_at else "Unknown"
+    )
+
+    if isinstance(user, discord.Member):
+        embed.add_field(name="Joined server", value=joined_server)
+        embed.add_field(name="Roles", value=", ".join(roles) or "None")
+
+    embed.set_thumbnail(url=user.display_avatar.url)
+    embed.set_footer(text=f"Requested by {interaction.user.name} • {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     await interaction.response.send_message(embed=embed, ephemeral=hidden)
 
@@ -712,6 +727,75 @@ async def fact(interaction: discord.Interaction, sort: str, global_lb: bool = Fa
 
     conn.close()
     await interaction.followup.send(embed=embed, ephemeral=hidden)
+
+@discord.app_commands.allowed_installs(guilds=True, users=False)
+@discord.app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@bot.tree.command(name="profile", description="Check your profile") #, guild=guild)
+@app_commands.describe(hidden="Hide the command from others", user='Select a user to view their profile')
+async def profile(interaction: discord.Interaction, hidden: bool = False, user: discord.User | discord.Member | None = None):
+    await interaction.response.defer(ephemeral=hidden)
+    user = user if user else interaction.user
+
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+
+        top_level = cur.execute("SELECT level FROM users WHERE user_id=? ORDER BY level DESC LIMIT 1", (user.id,)).fetchone()
+        top_xp = cur.execute("SELECT total_xp FROM users WHERE user_id=? ORDER BY total_xp DESC LIMIT 1", (user.id,)).fetchone()
+        top_messages = cur.execute("SELECT total_messages FROM users WHERE user_id=? ORDER BY total_messages DESC LIMIT 1", (user.id,)).fetchone()
+
+        total_xp = cur.execute("SELECT SUM(total_xp) FROM users WHERE user_id=?", (user.id,)).fetchone()[0] or 0
+        total_messages = cur.execute("SELECT SUM(total_messages) FROM users WHERE user_id=?", (user.id,)).fetchone()[0] or 0
+
+    except Exception as e:
+        await interaction.followup.send(f"Something went wrong... Please DM <@996771607630585856> about this\n> {e}", ephemeral=hidden, allowed_mentions=discord.AllowedMentions(users=False))
+        return
+
+    finally:
+        if conn:
+            conn.close()
+
+    embed = discord.Embed(
+        title=f"{user.name}'s Profile",
+        color=discord.Color(0x7128fc)
+    )
+
+    highest_level = top_level[0] if top_level else 0
+    highest_xp = top_xp[0] if top_xp else 0
+    highest_messages = top_messages[0] if top_messages else 0
+
+    embed.description = (f"hey {user.mention} :3\nhere's your global profile card")
+
+    embed.add_field(
+        name="📈 Progress",
+        value=(
+            f"**Highest Level:** `{highest_level}`\n"
+            f"**Highest XP (single server):** `{highest_xp:,}`\n"
+            f"**Total XP:** `{total_xp:,}`"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="💬 Activity",
+        value=(
+            f"**Total Messages:** `{total_messages:,}`\n"
+            f"**Most Messages (single server):** `{highest_messages:,}`"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="📅 Account Created",
+        value=f"<t:{int(user.created_at.timestamp())}:F>",
+        inline=False
+    )
+
+    embed.set_thumbnail(url=user.display_avatar.url)
+
+    embed.set_footer(text=f"user id: {user.id}")
+
+    return await interaction.followup.send(embed=embed, ephemeral=hidden, allowed_mentions=discord.AllowedMentions(users=False))
 
 # Message events
 
