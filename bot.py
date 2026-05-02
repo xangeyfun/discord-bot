@@ -1037,7 +1037,8 @@ async def on_message(message):
             progress -= out_of
             level += 1
             out_of = int(100 + level * 20)
-            level_channel = dict(cur.execute("SELECT level_channel_id, level_channel_enabled FROM guild_settings WHERE guild_id = ?", (guild_id,)).fetchone())
+            level_channel = (cur.execute("SELECT level_channel_id, level_channel_enabled FROM guild_settings WHERE guild_id = ?", (guild_id,)).fetchone())
+            level_channel = dict(level_channel) if level_channel else None
 
             channel = bot.get_channel(level_channel["level_channel_id"]) if level_channel and level_channel["level_channel_id"] and level_channel["level_channel_enabled"] else None
 
@@ -1048,7 +1049,10 @@ async def on_message(message):
                 count = min((level - 1) % 10 + 1, 10)
                 await channel.send(f"🎊 {message.author.mention} reached **Level {level}**! {emoji*count}")
 
-            level_roles = dict(cur.execute("SELECT level, role_id FROM level_roles WHERE guild_id = ?", (guild_id,)).fetchall())
+            level_roles = (cur.execute("SELECT level, role_id FROM level_roles WHERE guild_id = ?", (guild_id,)).fetchall())
+            level_roles = dict(level_roles) if level_roles else None
+            if not level_roles:
+                return
             for req_level, role_id in level_roles.items():
                 if level >= req_level:
                     role = message.guild.get_role(role_id)
