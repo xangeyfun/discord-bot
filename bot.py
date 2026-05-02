@@ -5,6 +5,7 @@ from simpleeval import simple_eval
 from llm import ask_llm, llm_stats
 from dotenv import load_dotenv
 import subprocess
+import traceback
 import datetime
 import requests
 import discord
@@ -34,12 +35,6 @@ last_llm = {}
 llm_queue = asyncio.Queue(maxsize=10)
 llm_queue_size = []
 last_xp = {}
-LEVEL_ROLES = {
-    1: 1203672643413221397, # cool guy role
-    3: 1217379957412593695, # GIF perms
-    5: 1206262995223584859, # photo perms
-    10: 1203672754843422761 # very cool guy role
-}
 
 with open("banned_ids.json", "r") as f:
     banned_ids = json.load(f)
@@ -98,6 +93,50 @@ async def get_llm_response(msg, display_name, user_id, reply_info = None):
 
     print(f"{date()} ERROR LLM empty response after 5 tries")
     return "Error occurred while fetching LLM response. Please try again.", "Empty response after 5 tries"
+
+async def level_autocomplete(interaction: Interaction, current: str):
+    conn = get_db()
+    cur = conn.cursor()
+
+    guild_id = interaction.guild.id if interaction.guild else None
+
+    rows = cur.execute("SELECT level FROM level_roles WHERE guild_id = ?", (guild_id,)).fetchall()
+
+    levels = [str(r[0]) for r in rows]
+
+    return [app_commands.Choice(name=level, value=level) for level in levels if current in level][:25]
+
+def get_command_path(interaction):
+    data = interaction.data
+
+    parts = [data["name"]]
+    options = data.get("options", [])
+
+    while options:
+        opt = options[0]
+
+        if opt.get("type") in (1, 2):  
+            parts.append(opt["name"])
+            options = opt.get("options", [])
+        else:
+            break
+
+    return "/" + " ".join(parts)
+
+def extract_options(options):
+    if not options:
+        return {}
+
+    out = {}
+
+    for opt in options:
+        if "value" in opt:
+            out[opt["name"]] = opt["value"]
+
+        elif "options" in opt:
+            out.update(extract_options(opt["options"]))
+
+    return out
 
 # Classes
 
@@ -180,7 +219,8 @@ async def on_interaction(interaction: discord.Interaction):
         else:
             channel_name = ""
         user_name = interaction.user.name if interaction.user else "Unknown"
-        command_name = interaction.command.name if interaction.command else "Unknown"
+        command_name = get_command_path(interaction)
+        command_options = extract_options(interaction.data.get("options", []))
         user_id = interaction.user.id if interaction.user else "Unknown"
         guild_id = interaction.guild.id if interaction.guild else "DM"
         if guild_id != "DM":
@@ -188,17 +228,11 @@ async def on_interaction(interaction: discord.Interaction):
         else:
             guild_id = ""
 
-        options_str = ""
-        if interaction.data and "options" in interaction.data:
-            options = interaction.data["options"]
-            parts = []
-            for opt in options:
-                parts.append(f"{opt['name']}:{opt.get('value', 'N/A')}")
-            options_str = " " + " ".join(parts) if parts else ""
+        options_str = " ".join(f"{k}:{v}" for k, v in command_options.items())
 
-        print(f"{date()} COMMAND '/{command_name}{options_str}' used by '{user_name}' in '{guild_name}{channel_name}' (user_id: {user_id}{guild_id})")
+        print(f"{date()} COMMAND '{command_name} {options_str}' used by '{user_name}' in '{guild_name}{channel_name}' (user_id: {user_id}{guild_id})")
         with open("command_logs.txt", "a") as f:
-            f.write(f"{date()} COMMAND '/{command_name}{options_str}' used by '{user_name}' in '{guild_name}{channel_name}' (user_id: {user_id}{guild_id})\n")
+            f.write(f"{date()} COMMAND '{command_name} {options_str}' used by '{user_name}' in '{guild_name}{channel_name}' (user_id: {user_id}{guild_id})\n")
 
 
 @discord.app_commands.allowed_installs(guilds=True, users=True)
@@ -743,7 +777,7 @@ async def profile(interaction: discord.Interaction, hidden: bool = False, user: 
 @discord.app_commands.allowed_installs(guilds=True, users=True)
 @discord.app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 @bot.tree.command(name="ai", description="Chat with the bot's LLM (powered by Llama 3.2)") #, guild=guild)
-@app_commands.describe(message="The message to send to the LLM", info="Show additional information about the LLM response", hidden="Hide the command from others")
+@app_commands.describe(message="The message to send to the LLM", stats="Show additional information about the LLM response", hidden="Hide the command from others")
 async def ai(interaction: discord.Interaction, message: str, stats: bool = False, hidden: bool = False):
     await interaction.response.defer(ephemeral=hidden)
 
@@ -761,6 +795,101 @@ async def ai(interaction: discord.Interaction, message: str, stats: bool = False
         reply += f"\n> {info}"
 
     await interaction.followup.send(reply, ephemeral=hidden)
+
+# Admin config commands
+
+config = discord.app_commands.Group(name="config", description="Admin commands for configuring the bot") #, guild=guild)
+level = discord.app_commands.Group(name="level", description="Configure level system settings", parent=config) #, guild=guild)
+bot.tree.add_command(config)
+
+@discord.app_commands.allowed_installs(guilds=True, users=False)
+@discord.app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
+@discord.app_commands.checks.has_permissions(administrator=True)
+@config.command(name="view", description="View current configuration") #, guild=guild)
+async def view_config(interaction: discord.Interaction):
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        level_channel = cur.execute("SELECT level_channel_id, level_channel_enabled FROM guild_settings WHERE guild_id = ?", (interaction.guild.id,)).fetchone() # type: ignore
+        level_roles = cur.execute("SELECT level, role_id FROM level_roles WHERE guild_id = ?", (interaction.guild.id,)).fetchall() # type: ignore
+    except Exception as e:
+        print(f"{date()} ERROR  Failed to fetch config: {e}")
+        await interaction.response.send_message(f"Failed to fetch config. Please try again later.\n> {e}", ephemeral=True)
+        return
+    finally:
+        conn.close()
+
+    embed = discord.Embed(title="⚙️ Current Configuration", color=discord.Color(0x7128fc))
+
+    if level_channel:
+        channel = interaction.guild.get_channel(level_channel[0])
+        channel_name = channel.mention if channel else "`Deleted Channel`"
+        embed.add_field(name="Level Up Channel", value=f"{channel_name} ({'Enabled' if level_channel[1] else 'Disabled'})", inline=False)
+    else:
+        embed.add_field(name="Level Up Channel", value="Not set", inline=False)
+
+    if level_roles:
+        roles_str = "\n".join([f"Level {row[0]}: <@&{row[1]}>" for row in level_roles])
+        embed.add_field(name="Level Roles", value=roles_str, inline=False)
+    else:
+        embed.add_field(name="Level Roles", value="No level roles set", inline=False)
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@discord.app_commands.allowed_installs(guilds=True, users=False)
+@discord.app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
+@discord.app_commands.checks.has_permissions(administrator=True)
+@level.command(name="set_channel", description="Set the channel for level up messages") #, guild=guild)
+@app_commands.describe(channel="The channel to send level up messages in", enabled="Whether to enable level up messages")
+async def set_level_channel(interaction: discord.Interaction, channel: discord.TextChannel, enabled: bool | None = None):
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("INSERT INTO guild_settings (guild_id, level_channel_id, level_channel_enabled) VALUES (?, ?, ?) ON CONFLICT(guild_id) DO UPDATE SET level_channel_id = excluded.level_channel_id, level_channel_enabled = excluded.level_channel_enabled", (interaction.guild.id, channel.id, int(enabled))) # type: ignore
+        conn.commit()
+    except Exception as e:
+        print(f"{date()} ERROR  Failed to set level channel: {e}")
+    finally:
+        conn.close()
+
+    await interaction.response.send_message(f"Level up channel set to {channel.mention} and {'enabled' if enabled else 'disabled'}", ephemeral=True)
+
+@discord.app_commands.allowed_installs(guilds=True, users=False)
+@discord.app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
+@discord.app_commands.checks.has_permissions(administrator=True)
+@level.command(name="add_role", description="Add a role to be given on level up") #, guild=guild)
+@app_commands.describe(level="The level to give the role at", role="The role to give")
+async def add_level_role(interaction: discord.Interaction, level: int, role: discord.Role):
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("INSERT OR REPLACE INTO level_roles (guild_id, level, role_id) VALUES (?, ?, ?)", (interaction.guild.id, level, role.id)) # type: ignore
+        conn.commit()
+    except Exception as e:
+        print(f"{date()} ERROR  Failed to add level role: {e}")
+    finally:
+        conn.close()
+
+    await interaction.response.send_message(f"Role {role.mention} will now be given at level {level}", ephemeral=True)
+
+@discord.app_commands.allowed_installs(guilds=True, users=False)
+@discord.app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
+@discord.app_commands.checks.has_permissions(administrator=True)
+@level.command(name="remove_role", description="Remove a level role") #, guild=guild)
+@app_commands.describe(level="The level of the role to remove")
+@app_commands.autocomplete(level=level_autocomplete)
+async def remove_level_role(interaction: discord.Interaction, level: int):
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM level_roles WHERE guild_id = ? AND level = ?", (interaction.guild.id, level)) # type: ignore
+        conn.commit()
+    except Exception as e:
+        print(f"{date()} ERROR  Failed to remove level role: {e}")
+    finally:
+        conn.close()
+
+    await interaction.response.send_message(f"Level role for level {level} has been removed", ephemeral=True)
 
 # Message events
 
@@ -794,7 +923,6 @@ async def on_message(message):
     # DM message
     if isinstance(message.channel, discord.DMChannel):
         await message.channel.send("Hello! I'm a bot. 🤖\n> Please use slash commands (/) to interact with me!")
-        await bot.process_commands(message)
         return
 
     if "https://cdn.discordapp.com/stickers/1488531621996134430.png" in [sticker.url for sticker in message.stickers] and message.author.id not in banned_ids:
@@ -815,14 +943,12 @@ async def on_message(message):
     if message.content.startswith("<@1442229230384709752>") or message_reference or message.channel.id == 1494361038420709466: 
         if message.author.id in last_llm and time.time() - last_llm[message.author.id] < LLM_COOLDOWN and message.author.id != 996771607630585856:
             await message.reply(f"Please wait before using the LLM again. Cooldown: `{LLM_COOLDOWN - (time.time() - last_llm[message.author.id]):.1f} seconds left.`")
-            await bot.process_commands(message)
             return
 
         msg = message.content.replace("<@1442229230384709752>", "").strip()
         msg = msg.replace("--stats", "").strip()
         if not msg:
             await message.reply("Please provide a message for the LLM to respond to.")
-            await bot.process_commands(message)
             return
 
         reply_info = None
@@ -877,7 +1003,6 @@ async def on_message(message):
             cur.execute("UPDATE users SET total_messages = total_messages + 1, last_message=?, display_name=?, username=?, avatar_hash=? WHERE guild_id=? AND user_id=?", (str(datetime.datetime.now()), message.author.display_name, message.author.name, message.author.avatar.key if message.author.avatar else None, guild_id, user_id))
             conn.commit()
             conn.close()
-            await bot.process_commands(message)
             return
         
         if user_id in last_xp:
@@ -885,7 +1010,6 @@ async def on_message(message):
                 cur.execute("UPDATE users SET total_messages = total_messages + 1, last_message=?, display_name=?, username=?, avatar_hash=? WHERE guild_id=? AND user_id=?", (str(datetime.datetime.now()), message.author.display_name, message.author.name, message.author.avatar.key if message.author.avatar else None, guild_id, user_id))
                 conn.commit()
                 conn.close()
-                await bot.process_commands(message)
                 return
             
         xp = random.randint(1, 15)
@@ -913,43 +1037,41 @@ async def on_message(message):
             progress -= out_of
             level += 1
             out_of = int(100 + level * 20)
+            level_channel = dict(cur.execute("SELECT level_channel_id, level_channel_enabled FROM guild_settings WHERE guild_id = ?", (guild_id,)).fetchone())
 
-            if message.guild.id not in [1203657476306894868, 1487803811178352832]:
-                cur.execute("UPDATE users SET level=?, progress=?, out_of=? WHERE guild_id=? AND user_id=?", (level, progress, out_of, guild_id, user_id))
-                conn.commit()
-                conn.close()
-                return
+            channel = bot.get_channel(level_channel["level_channel_id"]) if level_channel and level_channel["level_channel_id"] and level_channel["level_channel_enabled"] else None
 
-            level_channel = bot.get_channel(1450192627478564916 if message.guild.id == 1203657476306894868 else 1487803937254801408)
-
-            if level_channel and isinstance(level_channel, discord.TextChannel):
+            if channel and isinstance(channel, discord.TextChannel) and level_channel["level_channel_enabled"]:
                 emojis = ['⭐', '🔥', '🌟', '💎', '⚡', '🛡️', '🏹', '🎯', '👑', '🌈']
                 index = min((level - 1) // 10, len(emojis) - 1)
                 emoji = emojis[index]
                 count = min((level - 1) % 10 + 1, 10)
-                await level_channel.send(f"🎊 {message.author.mention} reached **Level {level}**! {emoji*count}")
+                await channel.send(f"🎊 {message.author.mention} reached **Level {level}**! {emoji*count}")
 
-            if level in LEVEL_ROLES:
-                role_id = LEVEL_ROLES[level]
-                role = message.guild.get_role(role_id)
+            level_roles = dict(cur.execute("SELECT level, role_id FROM level_roles WHERE guild_id = ?", (guild_id,)).fetchall())
+            for req_level, role_id in level_roles.items():
+                if level >= req_level:
+                    role = message.guild.get_role(role_id)
 
-                if role:
-                    await message.author.add_roles(role)
+                    if role and role not in message.author.roles:
+                        await message.author.add_roles(role)
 
-                    if level_channel and isinstance(level_channel, discord.TextChannel):
-                        await level_channel.send(f"🎖️ Congrats {message.author.mention}! You've earned the **`{role.name}`** role!")
+                        if channel and isinstance(channel, discord.TextChannel):
+                            await channel.send(f"🎖️ Congrats {message.author.mention}! You've earned the **`{role.name}`** role!")
 
         cur.execute("UPDATE users SET level=?, progress=?, out_of=? WHERE guild_id=? AND user_id=?", (level, progress, out_of, guild_id, user_id))
         conn.commit()
     
     except Exception as e:
-        await message.reply(f"Something went wrong... Please DM <@996771607630585856> about this\n> {e}", allowed_mentions=discord.AllowedMentions(users=False))
-        conn.close()
-        await bot.process_commands(message)
+        e = str(e)
+        trace = traceback.format_exc()
+        print(f"{date()} ERROR  Failed to process message for leveling: {e}\n```\n{trace}```")
+        await message.reply(f"Something went wrong... Please DM <@996771607630585856> about this\n> {e}\n> {trace}", allowed_mentions=discord.AllowedMentions(users=False))
         return
 
-    conn.close()
-    await bot.process_commands(message)
+    finally:
+        conn.close()
+        await bot.process_commands(message)
 
 @tasks.loop(minutes=1)
 async def qotd():
@@ -1055,6 +1177,13 @@ async def update_stats():
     conn.close()
     print(f"{date()} INFO  Updated bot stats: {total_guilds} guilds, {total_members} members")
 
+# Error handling
+
+@bot.tree.error
+async def on_app_command_error(interaction, error):
+    if isinstance(error, discord.app_commands.MissingPermissions):
+        return await interaction.response.send_message("> You do not have permission to use this command.", ephemeral=True)
+
 if __name__ == "__main__":
     # Setup DB
     conn = get_db()
@@ -1083,6 +1212,25 @@ if __name__ == "__main__":
     CREATE TABLE IF NOT EXISTS bot_stats (
         total_guilds INTEGER DEFAULT 0,
         total_members INTEGER DEFAULT 0
+    )
+    """)
+    conn.commit()
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS guild_settings (
+        guild_id INTEGER PRIMARY KEY,
+        level_channel_id INTEGER,
+        level_channel_enabled BOOLEAN DEFAULT 1
+    )
+    """)
+    conn.commit()
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS level_roles (
+        guild_id INTEGER,
+        level INTEGER,
+        role_id INTEGER,
+        UNIQUE(guild_id, level)
     )
     """)
     conn.commit()
