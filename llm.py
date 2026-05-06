@@ -1,12 +1,13 @@
-import time
+from collections import defaultdict, deque
 from datetime import datetime
 from zoneinfo import ZoneInfo
-
 import requests
+import time
 
 avg_response_times = []
 avg_tps = []
 total_tokens = 0
+chat_histories = defaultdict(lambda: deque(maxlen=10))
 
 
 def date():
@@ -16,9 +17,7 @@ def date():
 def llm_stats():
     global total_tokens
 
-    avgresponse = (
-        sum(avg_response_times) / len(avg_response_times) if avg_response_times else 0
-    )
+    avgresponse = (sum(avg_response_times) / len(avg_response_times) if avg_response_times else 0)
 
     avgtps = sum(avg_tps) / len(avg_tps) if avg_tps else 0
 
@@ -32,6 +31,31 @@ def get_prompt(name="default"):
     except FileNotFoundError:
         raise Exception(f"Prompt file not found: '{name}'")
 
+def sanitize(text):
+    return (text.replace("<|", "").replace("|>", "").strip())
+
+
+def add_to_history(user_id, speaker, message):
+    chat_histories[user_id].append(
+        {
+            "speaker": speaker,
+            "message": sanitize(message)
+        }
+    )
+
+
+def format_history(user_id):
+    history = chat_histories[user_id]
+
+    if not history:
+        return "none"
+
+    lines = []
+
+    for msg in history:
+        lines.append(f"[{msg['speaker']}]: {msg['message']}")
+
+    return "\n".join(lines)
 
 def ask_llm(prompt, username, user_id, reply_info=None):
     global total_tokens
@@ -40,32 +64,29 @@ def ask_llm(prompt, username, user_id, reply_info=None):
     max_tokens = 1000
 
     user_message = prompt.replace("<|", "").replace("|>", "")
+    add_to_history(user_id, username, user_message)
 
     username = username.replace("@", "").replace("<|", "").replace("|>", "")
     username = username[:32]
 
     context_block = ""
     if reply_info and reply_info.get("content"):
-        reply_author = (
-            reply_info.get("author", "Unknown").replace("<|", "").replace("|>", "")[:32]
-        )
-        reply_content = (
-            reply_info.get("content", "").replace("<|", "").replace("|>", "")
-        )
-        context_block = (
-            f"{username} is replying to a message:\n{reply_author}: {reply_content}"
-        )
+        reply_author = (reply_info.get("author", "Unknown").replace("<|", "").replace("|>", "")[:32])
+        reply_content = (reply_info.get("content", "").replace("<|", "").replace("|>", ""))
+        context_block = (f"{username} is replying to a message:\n{reply_author}: {reply_content}")
 
-    now = datetime.now(ZoneInfo("Europe/Amsterdam")).strftime(
-        "It is %A, %B %d, %Y, %H:%M:%s"
-    )
+    now = datetime.now(ZoneInfo("Europe/Amsterdam")).strftime("It is %A, %B %d, %Y, %H:%M:%s")
 
-    prompt = get_prompt("default").format(
+    history_block = format_history(user_id)
+
+    prompt = get_prompt("friendly").format(
         username=username,
         now=now,
         context_block=context_block,
+        history_block=history_block,
         user_message=user_message,
     )
+
     r = requests.post(
         "http://localhost:8080/completion",
         json={
@@ -88,6 +109,7 @@ def ask_llm(prompt, username, user_id, reply_info=None):
 
     print(f"{date()} INFO  LLM raw response: '{reply}'")
     reply = reply.strip()
+    add_to_history(user_id, "VoidWave", reply)
     tokens = data.get("tokens_predicted", 0)
     total_time = time.time() - start
 
