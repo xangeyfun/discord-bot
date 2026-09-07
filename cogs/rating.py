@@ -147,10 +147,17 @@ def save_rating(user_id, rating, feedback, guild_name):
     conn = get_db()
     try:
         cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO user_ratings (user_id, rating, feedback, guild_name, created_at) VALUES (?, ?, ?, ?, ?)",
-            (user_id, rating, feedback, guild_name, int(time.time())),
-        )
+        cur.execute("SELECT id FROM user_ratings WHERE user_id = ?", (user_id,))
+        if cur.fetchone():
+            cur.execute(
+                "UPDATE user_ratings SET rating=?, feedback=?, guild_name=?, created_at=? WHERE user_id=?",
+                (rating, feedback, guild_name, int(time.time()), user_id),
+            )
+        else:
+            cur.execute(
+                "INSERT INTO user_ratings (user_id, rating, feedback, guild_name, created_at) VALUES (?, ?, ?, ?, ?)",
+                (user_id, rating, feedback, guild_name, int(time.time())),
+            )
         cur.execute("UPDATE users SET rated = 1 WHERE user_id = ?", (user_id,))
         conn.commit()
         return True
