@@ -192,7 +192,7 @@ class EventsCog(commands.Cog):
                 ref_msg = await message.channel.fetch_message(message.reference.message_id)
             except (discord.NotFound, discord.HTTPException):
                 ref_msg = None
-            message_reference = ref_msg.author.id == 1442229230384709752 if ref_msg else False
+            message_reference = (ref_msg.author.id == 1442229230384709752 and "What's your answer? Feel free to share your thoughts, stories, or hot takes!" not in ref_msg.content) if ref_msg else False
 
         if f"<@{self.bot.user.id}>" in message.content or message_reference or message.channel.id == 1494361038420709466:
             server_ai, user_ai = await asyncio.to_thread(
