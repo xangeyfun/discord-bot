@@ -36,11 +36,65 @@
 </div>
 
 <div class="admin-grid cols-2">
-    <div class="admin-card">
+    <div>
+        <div class="admin-card" style="border-color: rgba(37,99,235,0.35); margin-bottom:1rem;">
+            <h2>Add Stats</h2>
+            <p class="card-sub">Grant XP, messages, voice time, or levels directly. Level, out_of, progress and totals update automatically.</p>
+            <form method="POST" action="{{ url_for('admin.user_edit', guild_id=user['guild_id'], user_id=user['user_id']) }}" class="admin-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="grant_stats">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label>XP</label>
+                        <input type="number" name="grant_xp" min="0" step="1" value="" placeholder="+ XP to total_xp and progress">
+                        <div class="hint">Progress rolls over into levels automatically.</div>
+                    </div>
+                    <div class="form-field">
+                        <label>Messages</label>
+                        <input type="number" name="grant_messages" min="0" step="1" value="" placeholder="+ messages to total counts">
+                        <div class="hint">Adds to total_messages and total_messages_xp.</div>
+                    </div>
+                    <div class="form-field">
+                        <label>VC Minutes</label>
+                        <input type="number" name="grant_vc" min="0" step="1" value="" placeholder="+ minutes to voice totals">
+                        <div class="hint">Adds to vc_minutes and vc_xp_minutes.</div>
+                    </div>
+                    <div class="form-field">
+                        <label>Levels</label>
+                        <input type="number" name="grant_levels" min="0" step="1" value="" placeholder="+ levels to level">
+                        <div class="hint">Adds the XP needed to cross each threshold to total_xp.</div>
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-sm" type="submit" data-armed>Add Stats</button>
+            </form>
+        </div>
+
+        <div class="admin-card">
         <h2>Statistics</h2>
         <p class="card-sub">Progress must stay below <span class="mono">out_of</span>, or enable auto-fix.</p>
         <form method="POST" action="{{ url_for('admin.user_edit', guild_id=user['guild_id'], user_id=user['user_id']) }}" class="admin-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-grid">
+                <div class="form-field">
+                    <label>Guild ID</label>
+                    <input type="number" name="guild_id" min="1000000000000" value="{{ user['guild_id'] }}" required>
+                    <div class="hint">Changing this moves the row to another guild</div>
+                </div>
+                <div class="form-field">
+                    <label>User ID</label>
+                    <input type="number" name="user_id" min="1000000000000" value="{{ user['user_id'] }}" required>
+                    <div class="hint">Changing this moves the row to another user</div>
+                </div>
+            </div>
+            <div class="admin-card" style="border-color: rgba(245,158,11,0.35); margin-bottom:1rem; padding:0.75rem;">
+                <label class="checkbox-field" style="margin-bottom:0;">
+                    <input type="checkbox" name="migrate_related">
+                    <div>
+                        <strong>Move related records to the new user ID</strong>
+                        <div class="hint">Re-points vote boosts, blocks, AI preference, vote reminders, and ratings from the old user ID to the new one. Tick this if you are fixing a wrong/mis-entered user ID.</div>
+                    </div>
+                </label>
+            </div>
             <div class="form-grid">
                 <div class="form-field">
                     <label>Level</label>
@@ -118,6 +172,7 @@
 
             <button class="btn btn-primary" type="submit">&#128190; Save Changes</button>
         </form>
+        </div>
     </div>
 
     <div>
@@ -128,6 +183,14 @@
                 <table class="admin-table compact">
                     <tbody>
                         <tr><td>Multiplier</td><td class="text-right num">{{ boost['multiplier'] }}x</td></tr>
+                        <tr><td>Last Vote</td><td class="text-right">
+                            {% if boost['last_vote_at'] %}
+                                <span class="mono">{{ boost['last_vote_at'] }}</span>
+                                <div class="muted" style="font-size:0.75rem; margin-top:0.2rem;">{{ boost['last_vote_at']|dt }}</div>
+                            {% else %}
+                                <span class="badge muted">never</span>
+                            {% endif %}
+                        </td></tr>
                         <tr><td>Expires</td><td class="text-right">
                             {% if boost['expires_at'] > now %}
                                 <span class="badge ok">{{ (boost['expires_at'] - now)|delta }} left</span>
@@ -155,6 +218,11 @@
                         <input type="number" name="boost_hours" min="1" max="720" placeholder="e.g. 12" required>
                     </div>
                 </div>
+                <div class="form-field">
+                    <label>Last Vote</label>
+                    <input type="text" name="boost_last_vote" placeholder="leave blank to keep, or 'now' or a unix timestamp">
+                    <div class="hint">Sets the &ldquo;last voted&rdquo; timestamp used by the voters leaderboard.</div>
+                </div>
                 <div class="hint">Replaces the boost and counts the duration from now. Max 720 hours.</div>
                 <button class="btn btn-primary btn-sm" type="submit">Save Boost</button>
             </form>
@@ -180,6 +248,68 @@
                     {% endif %}
                 {% endfor %}
             </div>
+        </div>
+
+        <div class="admin-card" style="margin-top:1rem;">
+            <h2>AI Preference</h2>
+            <p class="card-sub">Per-user opt-out from AI replies (<span class="mono">user_prefs</span>).</p>
+            {% if ai_pref and ai_pref['ai_enabled'] %}
+                <span class="badge ok">AI replies enabled</span>
+            {% elif ai_pref %}
+                <span class="badge muted">AI replies disabled</span>
+            {% else %}
+                <span class="badge muted">no preference stored (defaults to enabled)</span>
+            {% endif %}
+            <form method="POST" action="{{ url_for('admin.user_edit', guild_id=user['guild_id'], user_id=user['user_id']) }}" class="admin-form" style="margin-top:0.75rem;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="set_ai">
+                <div class="form-field">
+                    <label>AI Replies</label>
+                    <select name="ai_enabled">
+                        <option value="on" {% if ai_pref and ai_pref['ai_enabled'] %}selected{% endif %}>Enabled</option>
+                        <option value="" {% if ai_pref and not ai_pref['ai_enabled'] %}selected{% endif %}>Disabled</option>
+                    </select>
+                </div>
+                <button class="btn btn-secondary btn-sm" type="submit">Save AI Preference</button>
+            </form>
+        </div>
+
+        <div class="admin-card" style="margin-top:1rem;">
+            <h2>Blocks</h2>
+            <p class="card-sub">{{ block_count }} feature block(s) on record.</p>
+            <a href="{{ url_for('admin.block_user', user_id=user['user_id']) }}" class="btn btn-secondary btn-sm">Manage Blocks</a>
+        </div>
+
+        <div class="admin-card" style="margin-top:1rem;">
+            <h2>Ratings</h2>
+            <p class="card-sub">User-submitted app ratings (last 50).</p>
+            {% if ratings %}
+                <div class="admin-table-wrap" style="margin-bottom:0.5rem;">
+                    <table class="admin-table compact">
+                        <thead>
+                            <tr><th>Rating</th><th>When</th><th>Guild</th><th>Feedback</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            {% for r in ratings %}
+                            <tr>
+                                <td class="num">{{ r['rating'] }}&#11088;</td>
+                                <td><span class="mono" title="{{ r['created_at'] }}">{{ r['created_at']|dt }}</span></td>
+                                <td class="muted">{{ r['guild_name'] or 'n/a' }}</td>
+                                <td class="muted" style="max-width:220px;">{{ r['feedback'] or 'n/a' }}</td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('admin.rating_delete', rating_id=r['id']) }}" style="display:inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button class="btn btn-danger btn-sm" type="submit" data-armed>Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="empty-state" style="padding:1rem;">No ratings for this user.</div>
+            {% endif %}
         </div>
 
         <div class="admin-card" style="margin-top:1rem; border-color: rgba(239,68,68,0.35);">
