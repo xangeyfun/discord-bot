@@ -37,6 +37,7 @@
                 <a href="{{ url_for('admin.backups') }}" class="{% if request.endpoint in ('admin.backups', 'admin.backup_restore') %}active{% endif %}">&#128190; Backups</a>
                 <a href="{{ url_for('admin.bot_status') }}" class="{% if request.endpoint in ('admin.bot_status', 'admin.bot_confirm') %}active{% endif %}">&#128225; Bot Status</a>
                 <a href="{{ url_for('admin.logs') }}" class="{% if request.endpoint == 'admin.logs' %}active{% endif %}">&#128221; Audit Log</a>
+                <a href="{{ url_for('admin.events') }}" class="{% if request.endpoint == 'admin.events' %}active{% endif %}">&#128197; Events</a>
 
                 <div class="admin-nav-sep">Site</div>
                 <a href="/" target="_blank">&#128279; View Website</a>
