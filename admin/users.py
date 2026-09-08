@@ -43,6 +43,27 @@ def _parse_bulk_targets(raw):
     return targets
 
 
+def _apply_grant(user, xp, messages, vc, levels):
+    level, progress, out_of = user["level"], user["progress"], user["out_of"]
+    total_xp = user["total_xp"] + xp
+    progress += xp
+    level, progress, out_of = _normalize_progress(level, progress, out_of)
+
+    total_messages = user["total_messages"] + messages
+    total_messages_xp = user["total_messages_xp"] + messages
+
+    vc_minutes = user["vc_minutes"] + vc
+    vc_xp_minutes = user["vc_xp_minutes"] + vc
+
+    for _ in range(levels):
+        total_xp += out_of
+        level += 1
+        out_of = 100 + level * 20
+
+    return (level, progress, out_of, total_xp,
+            total_messages, total_messages_xp, vc_minutes, vc_xp_minutes)
+
+
 @admin_bp.route("/users")
 def users():
     q = (request.args.get("q") or "").strip()
@@ -305,29 +326,9 @@ def user_edit(guild_id, user_id):
                 if not (xp or messages or vc or levels):
                     return render_page(error="Enter at least one value greater than 0 to grant.")
 
-                level = user["level"]
-                progress = user["progress"]
-                out_of = user["out_of"]
-                total_xp = user["total_xp"]
-                total_messages = user["total_messages"]
-                total_messages_xp = user["total_messages_xp"]
-                vc_minutes = user["vc_minutes"]
-                vc_xp_minutes = user["vc_xp_minutes"]
-
-                total_xp += xp
-                progress += xp
-                level, progress, out_of = _normalize_progress(level, progress, out_of)
-
-                total_messages += messages
-                total_messages_xp += messages
-
-                vc_minutes += vc
-                vc_xp_minutes += vc
-
-                for _ in range(levels):
-                    total_xp += out_of
-                    level += 1
-                    out_of = 100 + level * 20
+                level, progress, out_of, total_xp, total_messages, total_messages_xp, vc_minutes, vc_xp_minutes = _apply_grant(
+                    user, xp, messages, vc, levels
+                )
 
                 conn.execute(
                     "UPDATE users SET level=?, progress=?, out_of=?, total_xp=?, "
@@ -489,6 +490,58 @@ def user_bulk_reset():
 
     _log("USER BULK RESET", f"count={count} ids={[(g, u) for g, u in targets[:20]]}")
     flash(f"Reset {count} user(s).", "success")
+    return redirect(url_for("admin.users"))
+
+
+@admin_bp.route("/users/bulk/grant", methods=["POST"])
+def user_bulk_grant():
+    confirm = (request.form.get("confirm") or "").strip()
+    if confirm != "GRANT":
+        flash("Confirmation must be GRANT", "error")
+        return redirect(url_for("admin.users"))
+
+    targets = _parse_bulk_targets(request.form.get("targets", ""))
+    if not targets:
+        flash("No valid user targets provided.", "error")
+        return redirect(url_for("admin.users"))
+
+    try:
+        xp = max(0, int(request.form.get("grant_xp") or 0))
+        messages = max(0, int(request.form.get("grant_messages") or 0))
+        vc = max(0, int(request.form.get("grant_vc") or 0))
+        levels = max(0, int(request.form.get("grant_levels") or 0))
+    except (TypeError, ValueError):
+        flash("Grant values must be whole numbers.", "error")
+        return redirect(url_for("admin.users"))
+
+    if not (xp or messages or vc or levels):
+        flash("Enter at least one value greater than 0 to grant.", "error")
+        return redirect(url_for("admin.users"))
+
+    conn = _db()
+    count = 0
+    try:
+        for guild_id, user_id in targets:
+            user = conn.execute(
+                "SELECT * FROM users WHERE guild_id=? AND user_id=?",
+                (guild_id, user_id)
+            ).fetchone()
+            if not user:
+                continue
+            conn.execute(
+                "UPDATE users SET level=?, progress=?, out_of=?, total_xp=?, "
+                "total_messages=?, total_messages_xp=?, vc_minutes=?, vc_xp_minutes=? "
+                "WHERE guild_id=? AND user_id=?",
+                _apply_grant(user, xp, messages, vc, levels) + (guild_id, user_id)
+            )
+            count += 1
+        conn.commit()
+        _clear_cache()
+    finally:
+        conn.close()
+
+    _log("USER BULK GRANT", f"count={count} xp={xp} msgs={messages} vc={vc} levels={levels}")
+    flash(f"Granted stats to {count} user(s).", "success")
     return redirect(url_for("admin.users"))
 
 
