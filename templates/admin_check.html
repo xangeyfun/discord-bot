@@ -54,7 +54,7 @@
     </div>
     <p class="card-sub">Checks grouped by category. Failures indicate data integrity issues.</p>
 
-    {% for group in ['Structure', 'Data', 'Info'] %}
+    {% for group in ['Structure', 'Data', 'System', 'Info'] %}
         {% set gresults = results | selectattr('category', 'equalto', group) | list %}
         {% if gresults %}
         <div class="section-divider">
