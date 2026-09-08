@@ -1,5 +1,6 @@
 import time
 import json
+import datetime
 import io
 import csv
 from flask import render_template, request, redirect, url_for, session, abort, flash, Response
@@ -8,7 +9,26 @@ from . import admin_bp
 from .helpers import (
     _db, _log, _clear_cache, _parse_int, _normalize_progress,
 )
-from .constants import USER_FIELDS
+from .constants import USER_FIELDS, USER_PK_FIELDS, RELATED_USER_TABLES
+
+
+def _parse_timestamp(value):
+    """Parse a unix timestamp or 'YYYY-MM-DD HH:MM[:SS]' string into unix seconds."""
+    s = str(value or "").strip()
+    if not s:
+        return None
+    if s.lower() == "now":
+        return int(time.time())
+    try:
+        return int(s)
+    except ValueError:
+        pass
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+        try:
+            return int(datetime.datetime.strptime(s, fmt).timestamp())
+        except ValueError:
+            continue
+    raise ValueError(s)
 
 
 def _parse_bulk_targets(raw):
@@ -188,6 +208,17 @@ def user_edit(guild_id, user_id):
             guild_rows = conn.execute(
                 "SELECT guild_id FROM users WHERE user_id=?", (user_id,)
             ).fetchall()
+            ai_pref = conn.execute(
+                "SELECT ai_enabled FROM user_prefs WHERE user_id=?", (user_id,)
+            ).fetchone()
+            ratings = conn.execute(
+                "SELECT id, rating, feedback, guild_name, created_at "
+                "FROM user_ratings WHERE user_id=? ORDER BY created_at DESC LIMIT 50",
+                (user_id,)
+            ).fetchall()
+            block_count = conn.execute(
+                "SELECT COUNT(*) c FROM user_blocks WHERE user_id=?", (user_id,)
+            ).fetchone()["c"]
             return render_template(
                 "admin_user_edit.html",
                 user=user,
@@ -195,6 +226,9 @@ def user_edit(guild_id, user_id):
                 global_rank=global_rank,
                 boost=boost,
                 guild_rows=guild_rows,
+                ai_pref=ai_pref,
+                ratings=ratings,
+                block_count=block_count,
                 flash_msg=flash_msg,
                 error=error,
                 now=int(time.time()),
@@ -221,21 +255,104 @@ def user_edit(guild_id, user_id):
                 if hours <= 0 or hours > 24 * 30:
                     return render_page(error="Duration must be between 1 and 720 hours.")
                 expires_at = int(time.time()) + hours * 3600
+
+                last_vote_raw = (request.form.get("boost_last_vote") or "").strip()
+                if last_vote_raw:
+                    try:
+                        last_vote_at = _parse_timestamp(last_vote_raw)
+                    except ValueError:
+                        return render_page(error="Last vote must be 'now', a unix timestamp, or a YYYY-MM-DD HH:MM date.")
+                else:
+                    prev = conn.execute(
+                        "SELECT last_vote_at FROM vote_boosts WHERE user_id=?", (user_id,)
+                    ).fetchone()
+                    last_vote_at = prev["last_vote_at"] if prev else None
+
                 conn.execute(
                     "INSERT INTO vote_boosts (user_id, multiplier, expires_at, last_vote_at) "
-                    "VALUES (?, ?, ?, NULL) "
-                    "ON CONFLICT(user_id) DO UPDATE SET multiplier=excluded.multiplier, expires_at=excluded.expires_at",
-                    (user_id, multiplier, expires_at)
+                    "VALUES (?, ?, ?, ?) "
+                    "ON CONFLICT(user_id) DO UPDATE SET multiplier=excluded.multiplier, "
+                    "expires_at=excluded.expires_at, last_vote_at=excluded.last_vote_at",
+                    (user_id, multiplier, expires_at, last_vote_at)
                 )
                 conn.commit()
                 _clear_cache()
-                _log("VOTE BOOST SET", f"user={user_id} multiplier={multiplier} expires_at={expires_at}")
+                _log("VOTE BOOST SET", f"user={user_id} multiplier={multiplier} expires_at={expires_at} last_vote_at={last_vote_at}")
                 return render_page(flash_msg="Vote boost saved.")
+
+            if action == "set_ai":
+                val = 1 if request.form.get("ai_enabled") == "on" else 0
+                conn.execute(
+                    "INSERT INTO user_prefs (user_id, ai_enabled) VALUES (?, ?) "
+                    "ON CONFLICT(user_id) DO UPDATE SET ai_enabled=excluded.ai_enabled",
+                    (user_id, val)
+                )
+                conn.commit()
+                _clear_cache()
+                _log("USER AI PREF", f"user={user_id} ai_enabled={val}")
+                return render_page(flash_msg="AI preference saved.")
+
+            if action == "grant_stats":
+                try:
+                    xp = max(0, int(request.form.get("grant_xp") or 0))
+                    messages = max(0, int(request.form.get("grant_messages") or 0))
+                    vc = max(0, int(request.form.get("grant_vc") or 0))
+                    levels = max(0, int(request.form.get("grant_levels") or 0))
+                except (TypeError, ValueError):
+                    _log("USER GRANT FAIL", f"bad value guild={guild_id} user={user_id}")
+                    return render_page(error="Grant values must be whole numbers.")
+
+                if not (xp or messages or vc or levels):
+                    return render_page(error="Enter at least one value greater than 0 to grant.")
+
+                level = user["level"]
+                progress = user["progress"]
+                out_of = user["out_of"]
+                total_xp = user["total_xp"]
+                total_messages = user["total_messages"]
+                total_messages_xp = user["total_messages_xp"]
+                vc_minutes = user["vc_minutes"]
+                vc_xp_minutes = user["vc_xp_minutes"]
+
+                total_xp += xp
+                progress += xp
+                level, progress, out_of = _normalize_progress(level, progress, out_of)
+
+                total_messages += messages
+                total_messages_xp += messages
+
+                vc_minutes += vc
+                vc_xp_minutes += vc
+
+                for _ in range(levels):
+                    total_xp += out_of
+                    level += 1
+                    out_of = 100 + level * 20
+
+                conn.execute(
+                    "UPDATE users SET level=?, progress=?, out_of=?, total_xp=?, "
+                    "total_messages=?, total_messages_xp=?, vc_minutes=?, vc_xp_minutes=? "
+                    "WHERE guild_id=? AND user_id=?",
+                    (level, progress, out_of, total_xp,
+                     total_messages, total_messages_xp, vc_minutes, vc_xp_minutes,
+                     guild_id, user_id)
+                )
+                conn.commit()
+                _clear_cache()
+
+                granted = {k: v for k, v in [("xp", xp), ("messages", messages),
+                                             ("vc", vc), ("levels", levels)] if v}
+                _log("USER GRANT", f"guild={guild_id} user={user_id} {json.dumps(granted)}")
+                user = conn.execute(
+                    "SELECT * FROM users WHERE guild_id=? AND user_id=?",
+                    (guild_id, user_id)
+                ).fetchone()
+                return render_page(flash_msg="Stats added. Level, out_of, progress and totals updated.")
 
             data = {}
             for field, ftype in USER_FIELDS.items():
                 raw = request.form.get(field, "")
-                if ftype == "int":
+                if ftype in ("int", "pk"):
                     try:
                         data[field] = int(raw)
                     except (TypeError, ValueError):
@@ -243,6 +360,11 @@ def user_edit(guild_id, user_id):
                         return render_page(error=f"Invalid number for {field}.")
                 else:
                     data[field] = raw.strip()
+
+            new_guild_id, new_user_id = data["guild_id"], data["user_id"]
+            if new_guild_id < 1000000000000 or new_user_id < 1000000000000:
+                _log("USER EDIT FAIL", f"invalid ids guild={guild_id} user={user_id}")
+                return render_page(error="Guild and user IDs must be valid Discord IDs (13+ digits).")
 
             if any(data[f] < 0 for f in ("level", "progress", "out_of", "total_xp",
                                          "total_messages", "total_messages_xp",
@@ -259,6 +381,8 @@ def user_edit(guild_id, user_id):
                 return render_page(error="Prompt Sent must be 0 or 1.")
 
             auto_fix = request.form.get("auto_fix") == "on"
+            migrate = request.form.get("migrate_related") == "on"
+            pk_changed = new_guild_id != guild_id or new_user_id != user_id
 
             if auto_fix:
                 level, progress, out_of = _normalize_progress(
@@ -270,14 +394,36 @@ def user_edit(guild_id, user_id):
             elif data["progress"] >= data["out_of"]:
                 _log("USER EDIT WARN", f"progress>=out_of after edit guild={guild_id} user={user_id}")
 
-            sets = ", ".join(f"{f}=?" for f in data)
+            if pk_changed:
+                conflict = conn.execute(
+                    "SELECT 1 FROM users WHERE guild_id=? AND user_id=?", (new_guild_id, new_user_id)
+                ).fetchone()
+                if conflict:
+                    return render_page(error="Another user row already exists with those guild/user IDs.")
+                conn.execute(
+                    "UPDATE users SET guild_id=?, user_id=? WHERE guild_id=? AND user_id=?",
+                    (new_guild_id, new_user_id, guild_id, user_id)
+                )
+                if migrate and new_user_id != user_id:
+                    for table in RELATED_USER_TABLES:
+                        conn.execute(f"DELETE FROM {table} WHERE user_id=?", (new_user_id,))
+                        conn.execute(f"UPDATE {table} SET user_id=? WHERE user_id=?", (new_user_id, user_id))
+
+            data_fields = {k: v for k, v in data.items() if k not in USER_PK_FIELDS}
+            sets = ", ".join(f"{f}=?" for f in data_fields)
             conn.execute(
                 f"UPDATE users SET {sets} WHERE guild_id=? AND user_id=?",
-                list(data.values()) + [guild_id, user_id]
+                list(data_fields.values()) + [new_guild_id, new_user_id]
             )
             conn.commit()
             _clear_cache()
-            _log("USER EDIT", f"guild={guild_id} user={user_id} {json.dumps(data)}")
+            _log("USER EDIT", f"guild={new_guild_id} user={new_user_id} "
+                              f"pk_changed={pk_changed} migrate={migrate if pk_changed else False} "
+                              f"{json.dumps(data)}")
+
+            if pk_changed:
+                flash(f"User moved to guild {new_guild_id} / user {new_user_id}.", "success")
+                return redirect(url_for("admin.user_edit", guild_id=new_guild_id, user_id=new_user_id))
 
             user = conn.execute(
                 "SELECT * FROM users WHERE guild_id=? AND user_id=?", (guild_id, user_id)
