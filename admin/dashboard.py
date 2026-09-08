@@ -163,17 +163,21 @@ def api_dashboard():
 @admin_bp.route("/ratings/<int:rating_id>/delete", methods=["POST"])
 def rating_delete(rating_id):
     conn = _db()
+    removed = 0
     try:
-        cur = conn.execute("DELETE FROM user_ratings WHERE id=?", (rating_id,))
-        removed = cur.rowcount
-        conn.commit()
-        _clear_cache()
+        row = conn.execute(
+            "SELECT user_id FROM user_ratings WHERE id=?", (rating_id,)
+        ).fetchone()
+        if row:
+            removed = conn.execute("DELETE FROM user_ratings WHERE id=?", (rating_id,)).rowcount
+            conn.commit()
+            _clear_cache()
+            _log("RATING DELETE", f"id={rating_id} user={row['user_id']}")
     finally:
         conn.close()
 
-    _log("RATING DELETE", f"rating={rating_id} rows={removed}")
     if removed:
         flash(f"Deleted rating #{rating_id}.", "success")
     else:
         flash(f"Rating #{rating_id} not found.", "error")
-    return redirect(url_for("admin.dashboard"))
+    return redirect(request.referrer or url_for("admin.dashboard"))
