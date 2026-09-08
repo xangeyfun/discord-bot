@@ -56,6 +56,7 @@
                     <p>{% block subheading %}Signed in as owner &middot; IP {{ client_ip() }}{% endblock %}</p>
                 </div>
                 <div class="admin-actions">
+                    <button class="btn btn-secondary btn-sm" id="paletteToggle" type="button" title="Quick jump (Ctrl+K)">&#128269; Jump</button>
                     {% block actions %}{% endblock %}
                 </div>
             </div>
@@ -71,7 +72,75 @@
             {% block content %}{% endblock %}
         </main>
 
+        <div class="admin-palette-overlay" id="paletteOverlay" hidden>
+            <div class="admin-palette" role="dialog" aria-modal="true" aria-label="Quick jump">
+                <input type="text" id="paletteInput" placeholder="Type to search pages..." autocomplete="off" spellcheck="false">
+                <div class="admin-palette-list" id="paletteList"></div>
+                <div class="admin-palette-hint">&#8593;&#8595; navigate &middot; Enter open &middot; Esc close</div>
+            </div>
+        </div>
+
         <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+        <script>
+        (function(){
+            const pages = [
+                {label:'Dashboard', url:'{{ url_for("admin.dashboard") }}', icon:'&#128202;'},
+                {label:'Users', url:'{{ url_for("admin.users") }}', icon:'&#128101;'},
+                {label:'User Blocks', url:'{{ url_for("admin.blocks") }}', icon:'&#128683;'},
+                {label:'Guilds', url:'{{ url_for("admin.guilds") }}', icon:'&#127970;'},
+                {label:'Commands', url:'{{ url_for("admin.commands_page") }}', icon:'&#128196;'},
+                {label:'Statistics', url:'{{ url_for("admin.stats") }}', icon:'&#128200;'},
+                {label:'Privacy / Forget', url:'{{ url_for("admin.forget") }}', icon:'&#128274;'},
+                {label:'Health Check', url:'{{ url_for("admin.check") }}', icon:'&#128269;'},
+                {label:'Backups', url:'{{ url_for("admin.backups") }}', icon:'&#128190;'},
+                {label:'Bot Status', url:'{{ url_for("admin.bot_status") }}', icon:'&#128225;'},
+                {label:'Audit Log', url:'{{ url_for("admin.logs") }}', icon:'&#128221;'},
+                {label:'Events', url:'{{ url_for("admin.events") }}', icon:'&#128197;'}
+            ];
+            const overlay = document.getElementById('paletteOverlay');
+            const input = document.getElementById('paletteInput');
+            const list = document.getElementById('paletteList');
+            let active = -1;
+            let results = [];
+
+            function openPalette(){ overlay.hidden = false; input.value = ''; render(); input.focus(); }
+            function closePalette(){ overlay.hidden = true; }
+
+            function render(){
+                const q = input.value.trim().toLowerCase();
+                results = q ? pages.filter(p => p.label.toLowerCase().includes(q)) : pages;
+                list.innerHTML = '';
+                active = results.length ? 0 : -1;
+                results.forEach((p, i) => {
+                    const d = document.createElement('div');
+                    d.className = 'admin-palette-item';
+                    d.innerHTML = '<span class="admin-palette-icon">' + p.icon + '</span><span>' + p.label + '</span>';
+                    d.addEventListener('mousemove', () => { active = i; paint(); });
+                    d.addEventListener('click', () => { window.location.href = p.url; });
+                    d.addEventListener('keydown', () => {});
+                    list.appendChild(d);
+                });
+                paint();
+            }
+            function paint(){
+                Array.from(list.children).forEach((el, i) => {
+                    el.classList.toggle('active', i === active);
+                });
+            }
+            input.addEventListener('input', render);
+            input.addEventListener('keydown', function(e){
+                if (e.key === 'ArrowDown'){ e.preventDefault(); if (results.length){ active = (active + 1) % results.length; paint(); } }
+                else if (e.key === 'ArrowUp'){ e.preventDefault(); if (results.length){ active = (active - 1 + results.length) % results.length; paint(); } }
+                else if (e.key === 'Enter'){ if (active >= 0 && results[active]) window.location.href = results[active].url; }
+                else if (e.key === 'Escape'){ closePalette(); }
+            });
+            document.getElementById('paletteToggle').addEventListener('click', openPalette);
+            overlay.addEventListener('click', function(e){ if (e.target === overlay) closePalette(); });
+            document.addEventListener('keydown', function(e){
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k'){ e.preventDefault(); overlay.hidden ? openPalette() : closePalette(); }
+            });
+        })();
+        </script>
         {% block scripts %}{% endblock %}
     </body>
 </html>
