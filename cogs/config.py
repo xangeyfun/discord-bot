@@ -801,7 +801,7 @@ class ConfigCog(commands.Cog):
     @discord.app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
     @discord.app_commands.checks.has_permissions(administrator=True)
     @qotd.command(name="set_time", description="Set the time of day the QOTD is posted")
-    @app_commands.describe(time="Time of day in 24-hour HH:MM format", timezone="Timezone for the time, e.g. Europe/Amsterdam (defaults to server time)")
+    @app_commands.describe(time="Time of day in 24-hour HH:MM format", timezone="Timezone for the time, e.g. Europe/Amsterdam (defaults to UTC)")
     @app_commands.autocomplete(timezone=_timezone_autocomplete)
     async def set_qotd_time(self, interaction: discord.Interaction, time: str, timezone: str = None):
         minutes = qotd_minutes(time)
