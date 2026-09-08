@@ -87,7 +87,7 @@ def qotd_now(tz_name=None):
             return datetime.datetime.now(ZoneInfo(tz_name))
         except Exception:
             pass
-    return datetime.datetime.now().astimezone()
+    return datetime.datetime.now(datetime.timezone.utc)
 
 
 def qotd_tz_label(tz_name=None):
@@ -96,7 +96,7 @@ def qotd_tz_label(tz_name=None):
     label = now.strftime("%Z")
     if not label:
         label = now.strftime("%z")
-    return label or "server time"
+    return label or "UTC"
 
 
 def qotd_minutes(time_str=None):
