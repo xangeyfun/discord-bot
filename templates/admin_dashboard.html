@@ -124,8 +124,10 @@
                 <span style="font-size:0.88rem;">Health checks</span>
             </div>
             <div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;">
-                <span class="badge {% if backup_count > 0 %}ok{% else %}warn{% endif %}">{{ backup_count }}</span>
-                <span style="font-size:0.88rem;">Backups</span>
+                <span class="badge {% if latest_backup and not backup_stale %}ok{% elif latest_backup %}warn{% else %}fail{% endif %}">{{ backup_count }}</span>
+                <span style="font-size:0.88rem;">Backups
+                    {% if latest_backup %}<span class="muted">({% if backup_age_hours < 24 %}{{ backup_age_hours }}h ago{% else %}{{ (backup_age_hours or 0) // 24 }}d ago{% endif %})</span>{% endif %}
+                </span>
             </div>
             <div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;">
                 <span class="badge info">{{ "{:,}".format(data.settings) }}</span>
@@ -140,7 +142,7 @@
             <span class="muted">DB: {{ db_size|size }}</span>
             <span class="muted">WAL: {{ wal_size|size }}</span>
             {% if latest_backup %}
-            <span class="muted">Latest: {{ latest_backup.mtime.strftime('%b %d, %H:%M') }}</span>
+            <span class="muted">Latest: {{ latest_backup.mtime.strftime('%b %d, %H:%M') }}{% if backup_stale %} <span class="badge warn">stale</span>{% endif %}</span>
             {% endif %}
         </div>
     </div>
