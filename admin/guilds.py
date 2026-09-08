@@ -162,6 +162,15 @@ def guild_edit(guild_id):
         settings = conn.execute(
             "SELECT * FROM guild_settings WHERE guild_id=?", (guild_id,)
         ).fetchone()
+
+        all_guilds = conn.execute("""
+            SELECT DISTINCT guild_id FROM users
+            UNION
+            SELECT guild_id FROM guild_settings
+            ORDER BY guild_id
+        """).fetchall()
+        guild_picker = [r["guild_id"] for r in all_guilds]
+
         level_roles = conn.execute(
             "SELECT * FROM level_roles WHERE guild_id=? ORDER BY level", (guild_id,)
         ).fetchall()
@@ -177,6 +186,23 @@ def guild_edit(guild_id):
         total_msgs = conn.execute(
             "SELECT COALESCE(SUM(total_messages),0) FROM users WHERE guild_id=?", (guild_id,)
         ).fetchone()[0]
+
+        leaderboard = [
+            dict(r) for r in conn.execute("""
+                SELECT user_id, display_name, username, level, progress, out_of, total_xp
+                FROM users WHERE guild_id=?
+                ORDER BY level DESC, total_xp DESC, user_id
+                LIMIT 10
+            """, (guild_id,)).fetchall()
+        ]
+
+        lr_by_level = {r["level"]: r["role_id"] for r in level_roles}
+        for entry in leaderboard:
+            best = None
+            for lvl, rid in lr_by_level.items():
+                if entry["level"] >= lvl and (best is None or lvl > best["level"]):
+                    best = {"level": lvl, "role_id": rid}
+            entry["role"] = best
 
         flash_msg = None
         error = None
@@ -269,6 +295,51 @@ def guild_edit(guild_id):
                     _log("GUILD SETTINGS EDIT", f"guild={guild_id}")
                     flash_msg = "Guild settings saved."
 
+            elif action == "clone_settings":
+                source_id = request.form.get("clone_source")
+                if not source_id or not source_id.isdigit():
+                    error = "Please select a source guild."
+                else:
+                    source_id = int(source_id)
+                    source = conn.execute(
+                        "SELECT * FROM guild_settings WHERE guild_id=?", (source_id,)
+                    ).fetchone()
+                    if not source:
+                        error = f"No settings found for guild {source_id}."
+                    elif source_id == guild_id:
+                        error = "Source and target guild are the same."
+                    else:
+                        if not settings:
+                            conn.execute(
+                                "INSERT INTO guild_settings (guild_id) VALUES (?)", (guild_id,)
+                            )
+                            conn.commit()
+                            settings = conn.execute(
+                                "SELECT * FROM guild_settings WHERE guild_id=?", (guild_id,)
+                            ).fetchone()
+                        for field in GUILD_SETTING_FIELDS:
+                            conn.execute(
+                                f"UPDATE guild_settings SET {field}=? WHERE guild_id=?",
+                                (source[field], guild_id)
+                            )
+                        conn.execute(
+                            "UPDATE guild_settings SET qotd_time=?, qotd_tz=?, qotd_queue=? WHERE guild_id=?",
+                            (source["qotd_time"], source["qotd_tz"], source["qotd_queue"], guild_id)
+                        )
+                        conn.execute("DELETE FROM level_roles WHERE guild_id=?", (guild_id,))
+                        source_roles = conn.execute(
+                            "SELECT level, role_id FROM level_roles WHERE guild_id=?", (source_id,)
+                        ).fetchall()
+                        for role in source_roles:
+                            conn.execute(
+                                "INSERT INTO level_roles (guild_id, level, role_id) VALUES (?, ?, ?)",
+                                (guild_id, role["level"], role["role_id"])
+                            )
+                        conn.commit()
+                        _clear_cache()
+                        _log("GUILD CLONE", f"guild={guild_id} from={source_id}")
+                        flash_msg = f"Copied settings and level roles from {source_id}."
+
             elif action == "add_role":
                 try:
                     level = int(request.form.get("level", 0))
@@ -331,4 +402,6 @@ def guild_edit(guild_id):
         flash_msg=flash_msg,
         error=error,
         qotd_queue_count=qotd_queue_count,
+        guild_picker=guild_picker,
+        leaderboard=leaderboard,
     )
