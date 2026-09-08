@@ -217,6 +217,22 @@ def guild_edit(guild_id):
                     except Exception:
                         error = "QOTD timezone must be a valid IANA name such as Europe/Berlin."
 
+                queue_val = None
+                if not error:
+                    queue_raw = (request.form.get("qotd_queue") or "").strip()
+                    if queue_raw:
+                        try:
+                            parsed_queue = json.loads(queue_raw)
+                        except ValueError:
+                            error = "QOTD queue must be valid JSON, e.g. [0, 3, 7]."
+                        else:
+                            if not isinstance(parsed_queue, list) or not all(
+                                isinstance(i, int) and i >= 0 for i in parsed_queue
+                            ):
+                                error = "QOTD queue must be a JSON array of question indexes, e.g. [0, 3, 7]."
+                            else:
+                                queue_val = json.dumps(parsed_queue)
+
                 if not error:
                     for field, ftype in GUILD_SETTING_FIELDS.items():
                         raw = request.form.get(field, "")
@@ -238,9 +254,15 @@ def guild_edit(guild_id):
                                 f"UPDATE guild_settings SET {field}=? WHERE guild_id=?",
                                 (val, guild_id)
                             )
+                        elif ftype == "text":
+                            val = raw.strip() or None
+                            conn.execute(
+                                f"UPDATE guild_settings SET {field}=? WHERE guild_id=?",
+                                (val, guild_id)
+                            )
                     conn.execute(
-                        "UPDATE guild_settings SET qotd_time=?, qotd_tz=? WHERE guild_id=?",
-                        (parsed_time, parsed_tz, guild_id)
+                        "UPDATE guild_settings SET qotd_time=?, qotd_tz=?, qotd_queue=? WHERE guild_id=?",
+                        (parsed_time, parsed_tz, queue_val, guild_id)
                     )
                     conn.commit()
                     _clear_cache()
