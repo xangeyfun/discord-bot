@@ -74,6 +74,7 @@
     <div class="flex items-center gap-1 flex-wrap" style="gap:0.75rem;">
         <span class="muted" style="font-size:0.88rem;"><span id="bulkCount">0</span> selected</span>
 
+        <button type="button" class="btn btn-primary btn-sm" onclick="openBulkModal('grant')">Grant Stats</button>
         <button type="button" class="btn btn-warning btn-sm" onclick="openBulkModal('reset')">Reset Selected</button>
         <button type="button" class="btn btn-danger btn-sm" onclick="openBulkModal('delete')">Delete Selected</button>
     </div>
@@ -82,6 +83,26 @@
 <div id="bulkModal" class="admin-card" style="display:none; border-color: rgba(239,68,68,0.35); margin-top:0.75rem;">
     <h2 id="bulkModalTitle" style="font-size:1rem;">Confirm</h2>
     <p class="card-sub" id="bulkModalDesc"></p>
+    <div id="grantFields" style="display:none; margin-bottom:0.75rem;">
+        <div class="form-grid" style="grid-template-columns:repeat(4, 1fr);">
+            <div class="form-field">
+                <label>XP</label>
+                <input type="number" id="grantXp" min="0" step="1" value="0">
+            </div>
+            <div class="form-field">
+                <label>Messages</label>
+                <input type="number" id="grantMessages" min="0" step="1" value="0">
+            </div>
+            <div class="form-field">
+                <label>VC (min)</label>
+                <input type="number" id="grantVc" min="0" step="1" value="0">
+            </div>
+            <div class="form-field">
+                <label>Levels</label>
+                <input type="number" id="grantLevels" min="0" step="1" value="0">
+            </div>
+        </div>
+    </div>
     <div class="flex items-center gap-1" style="gap:0.75rem; flex-wrap:wrap;">
         <div class="form-field" style="margin-bottom:0; min-width:160px;">
             <input type="text" id="bulkConfirmInput" data-confirm-input autocomplete="off" placeholder="">
@@ -187,6 +208,10 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="targets" id="bulkTargets">
     <input type="hidden" name="confirm" id="bulkConfirm">
+    <input type="hidden" name="grant_xp" id="bulkGrantXp">
+    <input type="hidden" name="grant_messages" id="bulkGrantMessages">
+    <input type="hidden" name="grant_vc" id="bulkGrantVc">
+    <input type="hidden" name="grant_levels" id="bulkGrantLevels">
 </form>
 {% endblock %}
 
@@ -206,6 +231,13 @@
     const form = document.getElementById('bulkForm');
     const targetsInput = document.getElementById('bulkTargets');
     const confirmInputHidden = document.getElementById('bulkConfirm');
+    const grantFields = document.getElementById('grantFields');
+    const grantInputs = {
+        xp: document.getElementById('grantXp'),
+        messages: document.getElementById('grantMessages'),
+        vc: document.getElementById('grantVc'),
+        levels: document.getElementById('grantLevels'),
+    }; 
 
     let pendingAction = '';
 
@@ -239,30 +271,50 @@
 
     window.openBulkModal = function(action) {
         pendingAction = action;
-        modalTitle.textContent = action === 'reset' ? 'Reset Selected Users' : 'Delete Selected Users';
+        modalTitle.textContent = action === 'reset' ? 'Reset Selected Users'
+            : action === 'delete' ? 'Delete Selected Users' : 'Grant Stats to Selected Users';
         modalDesc.textContent = action === 'reset'
             ? 'This will reset level, XP, messages, and voice time to zero for all selected users.'
-            : 'This will permanently delete all selected user rows from the database.';
+            : action === 'delete'
+                ? 'This will permanently delete all selected user rows from the database.'
+                : 'This adds XP, messages, voice time, or levels to every selected user.';
         confirmInput.value = '';
         confirmHint.textContent = '';
         submitBtn.disabled = true;
-        submitBtn.className = 'btn btn-sm ' + (action === 'delete' ? 'btn-danger' : 'btn-warning');
-        const required = action === 'reset' ? 'RESET' : 'DELETE';
+        submitBtn.className = 'btn btn-sm ' + (action === 'delete' ? 'btn-danger' : action === 'reset' ? 'btn-warning' : 'btn-primary');
+
+        const isGrant = action === 'grant';
+        grantFields.style.display = isGrant ? '' : 'none';
+        if (isGrant) {
+            grantInputs.xp.value = 0;
+            grantInputs.messages.value = 0;
+            grantInputs.vc.value = 0;
+            grantInputs.levels.value = 0;
+        }
+        const required = isGrant ? 'GRANT' : (action === 'reset' ? 'RESET' : 'DELETE');
         submitBtn.textContent = required;
 
         const sync = () => {
             const val = confirmInput.value.trim().toUpperCase();
-            const match = val === required;
+            const hasGrant = isGrant && (
+                ['xp', 'messages', 'vc', 'levels'].some(k => (parseInt(grantInputs[k].value, 10) || 0) > 0)
+            );
+            const match = isGrant ? (val === required && hasGrant) : (val === required);
             submitBtn.disabled = !match;
-            confirmHint.textContent = match ? 'Matches' : 'Type ' + required + ' to enable';
+            confirmHint.textContent = match ? 'Matches' : isGrant
+                ? 'Set at least one stat and type ' + required + ' to enable'
+                : 'Type ' + required + ' to enable';
             confirmHint.style.color = match ? 'var(--success)' : 'var(--text-muted)';
         };
         confirmInput.removeEventListener('input', sync);
         confirmInput.addEventListener('input', sync);
+        ['xp', 'messages', 'vc', 'levels'].forEach(k => {
+            grantInputs[k].addEventListener('input', sync);
+        });
         sync();
 
         modal.style.display = '';
-        confirmInput.focus();
+        (isGrant ? grantInputs.xp : confirmInput).focus();
     };
 
     window.closeBulkModal = function() {
@@ -271,13 +323,21 @@
     };
 
     window.submitBulkForm = function() {
-        const required = pendingAction === 'reset' ? 'RESET' : 'DELETE';
+        const required = pendingAction === 'reset' ? 'RESET' : pendingAction === 'delete' ? 'DELETE' : 'GRANT';
         if (confirmInput.value.trim().toUpperCase() !== required) return;
         targetsInput.value = getTargets();
         confirmInputHidden.value = required;
         form.action = pendingAction === 'reset'
             ? '{{ url_for("admin.user_bulk_reset") }}'
-            : '{{ url_for("admin.user_bulk_delete") }}';
+            : pendingAction === 'delete'
+                ? '{{ url_for("admin.user_bulk_delete") }}'
+                : '{{ url_for("admin.user_bulk_grant") }}';
+        if (pendingAction === 'grant') {
+            document.getElementById('bulkGrantXp').value = grantInputs.xp.value;
+            document.getElementById('bulkGrantMessages').value = grantInputs.messages.value;
+            document.getElementById('bulkGrantVc').value = grantInputs.vc.value;
+            document.getElementById('bulkGrantLevels').value = grantInputs.levels.value;
+        }
         form.submit();
     };
 })();
