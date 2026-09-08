@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 from flask import render_template, redirect, url_for, session, jsonify, abort, flash
 
 from . import admin_bp
-from .helpers import _db, _log, _clear_cache, _normalize_progress
+from .helpers import _db, _log, _clear_cache, _normalize_progress, _list_backups
 from .constants import (
     TABLES, REQUIRED_USERS_COLUMNS, REQUIRED_GUILD_COLUMNS, REQUIRED_VOTE_BOOST_COLUMNS,
 )
@@ -134,6 +134,19 @@ def _run_checks():
             "missing: " + ", ".join(missing_b) if missing_b else "all present",
             fix="vote_boost_schema" if missing_b else None,
             sql="PRAGMA table_info(vote_boosts)")
+
+        try:
+            backups = _list_backups()
+        except Exception:
+            backups = []
+        if not backups:
+            add("System", "Backup up to date", False,
+                "No backups found", sql="SELECT NULL FROM database_backups")
+        else:
+            age_h = (time.time() - backups[0]["mtime"].timestamp()) / 3600
+            add("System", "Backup up to date", age_h <= 7 * 24,
+                f"Latest backup is {int(age_h)}h old" if age_h >= 1 else "Latest backup is fresh",
+                sql="SELECT name FROM database_backups ORDER BY mtime DESC LIMIT 1")
 
         rows = q("SELECT guild_id, user_id, level, progress, out_of FROM users WHERE progress >= out_of")
         add("Data", "progress >= out_of", not rows,
