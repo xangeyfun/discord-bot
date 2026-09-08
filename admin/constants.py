@@ -42,7 +42,19 @@ REQUIRED_USERS_COLUMNS = {
     "avatar_hash", "command_uses", "rated", "prompt_sent",
 }
 
+REQUIRED_GUILD_COLUMNS = {
+    "guild_id", "level_channel_id", "level_channel_enabled",
+    "vote_announce_enabled", "ai_enabled",
+    "qotd_enabled", "qotd_channel", "qotd_role_id",
+    "last_qotd_id", "last_qotd_thread_id", "qotd_queue",
+    "delete_old_qotd", "qotd_time", "qotd_tz", "last_qotd_date",
+}
+
+REQUIRED_VOTE_BOOST_COLUMNS = {"user_id", "multiplier", "expires_at", "last_vote_at"}
+
 USER_FIELDS = {
+    "guild_id": "pk",
+    "user_id": "pk",
     "display_name": "text",
     "username": "text",
     "avatar_hash": "text",
@@ -60,14 +72,28 @@ USER_FIELDS = {
     "prompt_sent": "int",
 }
 
+USER_PK_FIELDS = ("guild_id", "user_id")
+
+RELATED_USER_TABLES = (
+    "vote_boosts",
+    "user_blocks",
+    "user_prefs",
+    "vote_reminders",
+    "user_ratings",
+)
+
 GUILD_SETTING_FIELDS = {
     "level_channel_id": "int",
     "level_channel_enabled": "bool",
     "vote_announce_enabled": "bool",
+    "ai_enabled": "bool",
     "qotd_enabled": "bool",
     "qotd_channel": "int",
     "qotd_role_id": "int",
     "delete_old_qotd": "bool",
+    "last_qotd_id": "int",
+    "last_qotd_thread_id": "int",
+    "last_qotd_date": "text",
 }
 
 LEVEL_ROLE_FIELDS = {
