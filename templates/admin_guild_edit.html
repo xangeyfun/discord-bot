@@ -62,13 +62,21 @@
             </div>
 
             <div class="form-grid">
-                <div class="form-field">
+<div class="form-field">
                     <label>Vote Announcements</label>
                     <select name="vote_announce_enabled">
                         <option value="on" {% if settings and settings['vote_announce_enabled'] %}selected{% endif %}>Enabled</option>
-                        <option value="" {% if not settings or settings['vote_announce_enabled'] == 0 %}selected{% endif %}>Disabled</option>
+                        <option value="" {% if settings and settings['vote_announce_enabled'] == 0 %}selected{% endif %}>Disabled</option>
                     </select>
                     <div class="hint">Announce votes in the level up channel</div>
+                </div>
+                <div class="form-field">
+                    <label>AI Replies</label>
+                    <select name="ai_enabled">
+                        <option value="on" {% if not settings or settings['ai_enabled'] %}selected{% endif %}>Enabled</option>
+                        <option value="" {% if settings and settings['ai_enabled'] == 0 %}selected{% endif %}>Disabled</option>
+                    </select>
+                    <div class="hint">Bot answers when mentioned or replied to</div>
                 </div>
             </div>
 
@@ -110,8 +118,32 @@
                 <div class="form-field">
                     <label>QOTD Timezone</label>
                     <input type="text" name="qotd_tz" value="{{ settings['qotd_tz'] if settings and settings['qotd_tz'] else '' }}" placeholder="Europe/Berlin">
-                    <div class="hint">IANA zone name. Leave blank to use the server's local time.</div>
+                    <div class="hint">IANA zone name. Leave blank to use UTC.</div>
                 </div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-field">
+                    <label>QOTD Last Post ID</label>
+                    <input type="text" name="last_qotd_id" value="{{ settings['last_qotd_id'] if settings and settings['last_qotd_id'] else '' }}" placeholder="Message ID">
+                    <div class="hint">ID of the most recent QOTD message</div>
+                </div>
+                <div class="form-field">
+                    <label>QOTD Last Thread ID</label>
+                    <input type="text" name="last_qotd_thread_id" value="{{ settings['last_qotd_thread_id'] if settings and settings['last_qotd_thread_id'] else '' }}" placeholder="Thread ID">
+                    <div class="hint">ID of the thread opened for the last QOTD</div>
+                </div>
+                <div class="form-field">
+                    <label>QOTD Last Posted Date</label>
+                    <input type="text" name="last_qotd_date" value="{{ settings['last_qotd_date'] if settings and settings['last_qotd_date'] else '' }}" placeholder="YYYY-MM-DD">
+                    <div class="hint">Prevents a duplicate post on the same day. Blank resets it so the next post fires.</div>
+                </div>
+            </div>
+
+            <div class="form-field">
+                <label>QOTD Queue</label>
+                <textarea name="qotd_queue" rows="3" style="font-family:var(--mono); font-size:0.85rem;" placeholder="e.g. [0, 3, 7]">{% if settings and settings['qotd_queue'] %}{{ settings['qotd_queue'] }}{% endif %}</textarea>
+                <div class="hint">Remaining shuffled question indexes as JSON. Leave blank to reset the queue.</div>
             </div>
 
             <button class="btn btn-primary" type="submit">&#128190; Save Settings</button>
@@ -176,7 +208,7 @@
                 <tbody>
                     <tr><td>QOTD Schedule</td><td class="text-right">
                         <span class="mono">{{ settings['qotd_time'] or '16:00' }}</span>
-                        <span class="muted" style="font-size:0.78rem;">{{ settings['qotd_tz'] or 'server time' }}</span>
+                        <span class="muted" style="font-size:0.78rem;">{{ settings['qotd_tz'] or 'UTC' }}</span>
                     </td></tr>
                     <tr><td>QOTD Last Post ID</td><td class="text-right"><span class="mono">{{ settings['last_qotd_id'] if settings and settings['last_qotd_id'] else 'none' }}</span></td></tr>
                     <tr><td>QOTD Thread ID</td><td class="text-right"><span class="mono">{{ settings['last_qotd_thread_id'] if settings and settings['last_qotd_thread_id'] else 'none' }}</span></td></tr>
