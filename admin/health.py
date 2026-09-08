@@ -1,12 +1,90 @@
 import time
+import json
 import subprocess
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from flask import render_template, redirect, url_for, session, jsonify, abort, flash
 
 from . import admin_bp
 from .helpers import _db, _log, _clear_cache, _normalize_progress
-from .constants import TABLES, REQUIRED_USERS_COLUMNS
+from .constants import (
+    TABLES, REQUIRED_USERS_COLUMNS, REQUIRED_GUILD_COLUMNS, REQUIRED_VOTE_BOOST_COLUMNS,
+)
+
+
+_GUILD_SCHEMA_FIXES = (
+    ("level_channel_enabled", "BOOLEAN DEFAULT 0"),
+    ("qotd_enabled", "BOOLEAN DEFAULT 0"),
+    ("qotd_channel", "INTEGER"),
+    ("qotd_role_id", "INTEGER"),
+    ("last_qotd_id", "INTEGER"),
+    ("last_qotd_thread_id", "INTEGER"),
+    ("qotd_queue", "TEXT"),
+    ("delete_old_qotd", "BOOLEAN DEFAULT 1"),
+    ("qotd_time", "TEXT DEFAULT '16:00'"),
+    ("qotd_tz", "TEXT"),
+    ("last_qotd_date", "TEXT"),
+    ("vote_announce_enabled", "BOOLEAN DEFAULT 1"),
+    ("ai_enabled", "BOOLEAN DEFAULT 1"),
+)
+
+_VOTE_BOOST_SCHEMA_FIXES = (
+    ("multiplier", "INTEGER DEFAULT 1"),
+    ("expires_at", "INTEGER"),
+    ("last_vote_at", "INTEGER"),
+)
+
+
+def _valid_qotd_time(value):
+    if value is None or value == "":
+        return True
+    parts = str(value).split(":")
+    if len(parts) != 2:
+        return False
+    try:
+        hours, minutes = int(parts[0]), int(parts[1])
+    except ValueError:
+        return False
+    return 0 <= hours <= 23 and 0 <= minutes <= 59
+
+
+def _valid_tz(value):
+    if value is None or value == "":
+        return True
+    try:
+        ZoneInfo(value)
+        return True
+    except Exception:
+        return False
+
+
+def _load_qotd_count():
+    qfile = Path("questions.json")
+    if not qfile.exists():
+        return None
+    try:
+        with open(qfile, encoding="utf-8") as f:
+            return len(json.load(f))
+    except Exception:
+        return None
+
+
+def _parse_qotd_queue(value, q_count=None):
+    """Return (ok, reason) for a stored qotd_queue value."""
+    if value is None or value == "":
+        return True, ""
+    try:
+        parsed = json.loads(value)
+    except ValueError:
+        return False, "not valid JSON"
+    if not isinstance(parsed, list):
+        return False, "not a JSON array"
+    if any(not isinstance(i, int) or isinstance(i, bool) or i < 0 for i in parsed):
+        return False, "contains non-integer or negative entries"
+    if q_count is not None and any(i >= q_count for i in parsed):
+        return False, f"index out of range (max {q_count - 1})"
+    return True, ""
 
 
 def _run_checks():
@@ -43,6 +121,20 @@ def _run_checks():
             "missing: " + ", ".join(missing_cols) if missing_cols else "all present",
             sql="PRAGMA table_info(users)")
 
+        g_cols = {r["name"] for r in q("PRAGMA table_info(guild_settings)")}
+        missing_g = sorted(REQUIRED_GUILD_COLUMNS - g_cols)
+        add("Structure", "guild_settings columns", not missing_g,
+            "missing: " + ", ".join(missing_g) if missing_g else "all present",
+            fix="guild_schema" if missing_g else None,
+            sql="PRAGMA table_info(guild_settings)")
+
+        b_cols = {r["name"] for r in q("PRAGMA table_info(vote_boosts)")}
+        missing_b = sorted(REQUIRED_VOTE_BOOST_COLUMNS - b_cols)
+        add("Structure", "vote_boosts columns", not missing_b,
+            "missing: " + ", ".join(missing_b) if missing_b else "all present",
+            fix="vote_boost_schema" if missing_b else None,
+            sql="PRAGMA table_info(vote_boosts)")
+
         rows = q("SELECT guild_id, user_id, level, progress, out_of FROM users WHERE progress >= out_of")
         add("Data", "progress >= out_of", not rows,
             f"{len(rows)} row(s)", fix="normalize" if rows else None,
@@ -64,12 +156,18 @@ WHERE level < 0 OR progress < 0 OR out_of < 0
    OR vc_minutes < 0 OR vc_xp_minutes < 0""")
 
         rows = q("""SELECT guild_id, user_id FROM users WHERE user_id IS NULL OR guild_id IS NULL
-            OR level IS NULL OR progress IS NULL OR out_of IS NULL""")
+            OR level IS NULL OR progress IS NULL OR out_of IS NULL
+            OR total_messages IS NULL OR total_messages_xp IS NULL OR total_xp IS NULL
+            OR vc_minutes IS NULL OR vc_xp_minutes IS NULL
+            OR command_uses IS NULL OR rated IS NULL OR prompt_sent IS NULL""")
         add("Data", "NULL required fields", not rows,
             f"{len(rows)} row(s)", fix="nulls" if rows else None,
             sql="""SELECT guild_id, user_id FROM users
 WHERE user_id IS NULL OR guild_id IS NULL
-   OR level IS NULL OR progress IS NULL OR out_of IS NULL""")
+   OR level IS NULL OR progress IS NULL OR out_of IS NULL
+   OR total_messages IS NULL OR total_messages_xp IS NULL OR total_xp IS NULL
+   OR vc_minutes IS NULL OR vc_xp_minutes IS NULL
+   OR command_uses IS NULL OR rated IS NULL OR prompt_sent IS NULL""")
 
         rows = q("SELECT user_id FROM users WHERE user_id < 1000000000000 GROUP BY user_id")
         add("Data", "Suspicious user IDs", not rows, f"{len(rows)} id(s)",
@@ -184,9 +282,59 @@ WHERE gs.level_channel_id IS NOT NULL AND gs.level_channel_id != 0
   AND lr.guild_id IS NULL""")
 
         rows = q("SELECT guild_id FROM guild_settings WHERE qotd_enabled=1 AND (qotd_channel IS NULL OR qotd_channel=0)")
-        add("Info", "QOTD enabled but no channel", not rows,
-            f"{len(rows)} guild(s)",
+        add("Data", "QOTD enabled but no channel", not rows,
+            f"{len(rows)} guild(s) cannot post", fix="qotd_disable" if rows else None,
             sql="SELECT guild_id FROM guild_settings\nWHERE qotd_enabled = 1 AND (qotd_channel IS NULL OR qotd_channel = 0)")
+
+        bad_times = [r for r in q("SELECT guild_id, qotd_time FROM guild_settings")
+                     if not _valid_qotd_time(r["qotd_time"])]
+        add("Data", "Invalid QOTD post time", not bad_times,
+            f"{len(bad_times)} guild(s)", fix="qotd_time" if bad_times else None,
+            sql="SELECT guild_id, qotd_time FROM guild_settings")
+
+        bad_tzs = [r for r in q("SELECT guild_id, qotd_tz FROM guild_settings")
+                   if not _valid_tz(r["qotd_tz"])]
+        add("Data", "Invalid QOTD timezone", not bad_tzs,
+            f"{len(bad_tzs)} guild(s)", fix="qotd_tz" if bad_tzs else None,
+            sql="SELECT guild_id, qotd_tz FROM guild_settings")
+
+        q_count = _load_qotd_count()
+        bad_queues = []
+        for r in q("SELECT guild_id, qotd_queue FROM guild_settings"):
+            if r["qotd_queue"] is None:
+                continue
+            ok, reason = _parse_qotd_queue(r["qotd_queue"], q_count)
+            if not ok:
+                bad_queues.append((r["guild_id"], reason))
+        add("Data", "Invalid QOTD queue", not bad_queues,
+            f"{len(bad_queues)} guild(s)",
+            fix="qotd_queue" if bad_queues else None,
+            sql="SELECT guild_id, qotd_queue FROM guild_settings")
+
+        now = int(time.time())
+        rows = q("SELECT user_id FROM vote_boosts WHERE last_vote_at > ?", (now,))
+        add("Data", "Vote boosts with future last vote", not rows,
+            f"{len(rows)} row(s)", fix="future_votes" if rows else None,
+            sql="SELECT user_id FROM vote_boosts\nWHERE last_vote_at > strftime('%s', 'now')")
+
+        rows = q("""SELECT guild_id, role_id FROM level_roles WHERE level < 0""")
+        add("Data", "Level roles below level 0", not rows,
+            f"{len(rows)} role(s)", fix="level_role_neg" if rows else None,
+            sql="SELECT guild_id, role_id FROM level_roles WHERE level < 0")
+
+        rows = q("""SELECT guild_id, user_id FROM users
+            WHERE rated NOT IN (0, 1) OR prompt_sent NOT IN (0, 1)""")
+        add("Data", "Invalid boolean flags", not rows,
+            f"{len(rows)} row(s)", fix="bools" if rows else None,
+            sql="""SELECT guild_id, user_id FROM users
+WHERE rated NOT IN (0, 1) OR prompt_sent NOT IN (0, 1)""")
+
+        rows = q("""SELECT guild_id FROM guild_settings
+            WHERE ai_enabled IS NOT NULL AND ai_enabled NOT IN (0, 1)""")
+        add("Data", "Invalid ai_enabled values", not rows,
+            f"{len(rows)} guild(s)", fix="bools" if rows else None,
+            sql="""SELECT guild_id FROM guild_settings
+WHERE ai_enabled IS NOT NULL AND ai_enabled NOT IN (0, 1)""")
 
         rows = q("SELECT guild_id FROM guild_settings WHERE qotd_enabled=1 AND (qotd_role_id IS NULL OR qotd_role_id=0)")
         add("Info", "QOTD enabled without ping role", True,
@@ -198,6 +346,61 @@ WHERE gs.level_channel_id IS NOT NULL AND gs.level_channel_id != 0
         add("Info", "Users with VC time but no VC XP", True,
             f"{len(rows)} row(s)",
             sql="SELECT guild_id, user_id FROM users\nWHERE vc_minutes > 0 AND vc_xp_minutes = 0")
+
+        for table in ("vote_boosts", "user_blocks", "user_prefs", "vote_reminders", "user_ratings"):
+            try:
+                rows = q(f"""SELECT user_id FROM {table}
+                    WHERE user_id IS NOT NULL
+                    AND user_id NOT IN (SELECT DISTINCT user_id FROM users)""")
+            except Exception:
+                continue
+            if rows:
+                add("Info", f"Orphan rows in {table}", True,
+                    f"{len(rows)} user(s) not in users table",
+                    sql=f"SELECT user_id FROM {table}\nWHERE user_id NOT IN (SELECT DISTINCT user_id FROM users)")
+
+        now = int(time.time())
+        rows = q("SELECT user_id FROM vote_reminders WHERE remind_at IS NOT NULL AND remind_at <= ?", (now,))
+        if rows:
+            add("Info", "Stale vote reminders owed", True,
+                f"{len(rows)} reminder(s) waiting to be sent",
+                sql="SELECT user_id FROM vote_reminders\nWHERE remind_at IS NOT NULL AND remind_at <= strftime('%s', 'now')")
+
+        rows = q("SELECT user_id, feature FROM user_blocks WHERE expires_at IS NOT NULL AND expires_at <= ?", (now,))
+        add("Info", "Expired user blocks", True,
+            f"{len(rows)} block(s) ignored but kept",
+            fix="purge_expired_blocks" if rows else None,
+            sql="SELECT user_id, feature FROM user_blocks\nWHERE expires_at IS NOT NULL AND expires_at <= strftime('%s', 'now')")
+
+        rows = q("""SELECT guild_id, last_qotd_date FROM guild_settings
+            WHERE last_qotd_date != '' AND date(last_qotd_date) > date('now', 'localtime')""")
+        if rows:
+            add("Info", "QOTD last posted in the future", True,
+                f"{len(rows)} guild(s)",
+                sql="""SELECT guild_id, last_qotd_date FROM guild_settings
+WHERE last_qotd_date != ''
+  AND date(last_qotd_date) > date('now', 'localtime')""")
+
+        rows = q("""SELECT guild_id FROM guild_settings
+            WHERE delete_old_qotd = 1 AND last_qotd_id IS NOT NULL
+            AND (last_qotd_thread_id IS NULL OR last_qotd_thread_id = 0)""")
+        if rows:
+            add("Info", "QOTD cleanup needs a thread id", True,
+                f"{len(rows)} guild(s) may not clean up the old message",
+                sql="""SELECT guild_id FROM guild_settings
+WHERE delete_old_qotd = 1 AND last_qotd_id IS NOT NULL
+  AND (last_qotd_thread_id IS NULL OR last_qotd_thread_id = 0)""")
+
+        queued = [r for r in q("SELECT qotd_queue FROM guild_settings WHERE qotd_queue IS NOT NULL")
+                  if _parse_qotd_queue(r["qotd_queue"])[0]]
+        total_queued = sum(len(json.loads(r["qotd_queue"])) for r in queued)
+        add("Info", "Questions left in QOTD queues", True,
+            f"{total_queued} across {len(queued)} guild(s)",
+            sql="SELECT qotd_queue FROM guild_settings WHERE qotd_queue IS NOT NULL")
+
+        rows = q("""SELECT guild_id FROM users GROUP BY guild_id HAVING COUNT(*) < 50""")
+        add("Info", "Servers with under 50 tracked users", True, f"{len(rows)} guild(s)",
+            sql="SELECT guild_id FROM users GROUP BY guild_id HAVING COUNT(*) < 50")
 
         total_xp = q("SELECT COALESCE(SUM(total_xp),0) FROM users")[0][0]
         total_msgs_xp = q("SELECT COALESCE(SUM(total_messages_xp),0) FROM users")[0][0]
@@ -300,11 +503,77 @@ def check_fix(kind):
         elif kind == "nulls":
             for col, val in [("level", 0), ("progress", 0), ("out_of", 100),
                              ("total_messages", 0), ("total_messages_xp", 0), ("total_xp", 0),
-                             ("vc_minutes", 0), ("vc_xp_minutes", 0)]:
-                executed_sql.append(f"UPDATE users SET {col}={val} WHERE {col} IS NULL")
+                             ("vc_minutes", 0), ("vc_xp_minutes", 0),
+                             ("command_uses", 0), ("rated", 0), ("prompt_sent", 0),
+                             ("last_message", "")]:
+                executed_sql.append(f"UPDATE users SET {col}={val!r} WHERE {col} IS NULL")
                 cur.execute(f"UPDATE users SET {col}=? WHERE {col} IS NULL", (val,))
             executed_sql.append("DELETE FROM users WHERE user_id IS NULL OR guild_id IS NULL")
             cur.execute("DELETE FROM users WHERE user_id IS NULL OR guild_id IS NULL")
+            changed = cur.rowcount
+        elif kind == "guild_schema":
+            cols = {r["name"] for r in cur.execute("PRAGMA table_info(guild_settings)")}
+            for col, ddl in _GUILD_SCHEMA_FIXES:
+                if col not in cols:
+                    stmt = f"ALTER TABLE guild_settings ADD COLUMN {col} {ddl}"
+                    executed_sql.append(stmt)
+                    cur.execute(stmt)
+                    changed += 1
+        elif kind == "vote_boost_schema":
+            cols = {r["name"] for r in cur.execute("PRAGMA table_info(vote_boosts)")}
+            for col, ddl in _VOTE_BOOST_SCHEMA_FIXES:
+                if col not in cols:
+                    stmt = f"ALTER TABLE vote_boosts ADD COLUMN {col} {ddl}"
+                    executed_sql.append(stmt)
+                    cur.execute(stmt)
+                    changed += 1
+        elif kind == "qotd_disable":
+            executed_sql.append("UPDATE guild_settings SET qotd_enabled = 0 WHERE qotd_enabled = 1 AND (qotd_channel IS NULL OR qotd_channel = 0)")
+            cur.execute("UPDATE guild_settings SET qotd_enabled = 0 WHERE qotd_enabled = 1 AND (qotd_channel IS NULL OR qotd_channel = 0)")
+            changed = cur.rowcount
+        elif kind == "qotd_time":
+            bad = [r["guild_id"] for r in cur.execute("SELECT guild_id, qotd_time FROM guild_settings")
+                   if not _valid_qotd_time(r["qotd_time"])]
+            for gid in bad:
+                stmt = f"UPDATE guild_settings SET qotd_time = NULL WHERE guild_id = {gid}"
+                executed_sql.append(stmt)
+                cur.execute("UPDATE guild_settings SET qotd_time = NULL WHERE guild_id = ?", (gid,))
+            changed = len(bad)
+        elif kind == "qotd_tz":
+            bad = [r["guild_id"] for r in cur.execute("SELECT guild_id, qotd_tz FROM guild_settings")
+                   if not _valid_tz(r["qotd_tz"])]
+            for gid in bad:
+                stmt = f"UPDATE guild_settings SET qotd_tz = NULL WHERE guild_id = {gid}"
+                executed_sql.append(stmt)
+                cur.execute("UPDATE guild_settings SET qotd_tz = NULL WHERE guild_id = ?", (gid,))
+            changed = len(bad)
+        elif kind == "qotd_queue":
+            q_count = _load_qotd_count()
+            bad = [r["guild_id"] for r in cur.execute("SELECT guild_id, qotd_queue FROM guild_settings")
+                   if r["qotd_queue"] is not None
+                   and not _parse_qotd_queue(r["qotd_queue"], q_count)[0]]
+            for gid in bad:
+                stmt = f"UPDATE guild_settings SET qotd_queue = NULL WHERE guild_id = {gid}"
+                executed_sql.append(stmt)
+                cur.execute("UPDATE guild_settings SET qotd_queue = NULL WHERE guild_id = ?", (gid,))
+            changed = len(bad)
+        elif kind == "future_votes":
+            executed_sql.append("UPDATE vote_boosts SET last_vote_at = NULL WHERE last_vote_at > strftime('%s', 'now')")
+            cur.execute("UPDATE vote_boosts SET last_vote_at = NULL WHERE last_vote_at > ?", (int(time.time()),))
+            changed = cur.rowcount
+        elif kind == "level_role_neg":
+            executed_sql.append("DELETE FROM level_roles WHERE level < 0")
+            cur.execute("DELETE FROM level_roles WHERE level < 0")
+            changed = cur.rowcount
+        elif kind == "bools":
+            for table, col in (("users", "rated"), ("users", "prompt_sent"), ("guild_settings", "ai_enabled")):
+                stmt = f"UPDATE {table} SET {col} = 0 WHERE {col} IS NOT NULL AND {col} NOT IN (0, 1)"
+                executed_sql.append(stmt)
+                cur.execute(stmt)
+                changed += cur.rowcount
+        elif kind == "purge_expired_blocks":
+            executed_sql.append("DELETE FROM user_blocks WHERE expires_at IS NOT NULL AND expires_at <= strftime('%s', 'now')")
+            cur.execute("DELETE FROM user_blocks WHERE expires_at IS NOT NULL AND expires_at <= ?", (int(time.time()),))
             changed = cur.rowcount
         elif kind == "empty":
             executed_sql.append("""DELETE FROM users
