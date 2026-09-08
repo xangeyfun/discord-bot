@@ -62,7 +62,7 @@
             </div>
 
             <div class="form-grid">
-<div class="form-field">
+                <div class="form-field">
                     <label>Vote Announcements</label>
                     <select name="vote_announce_enabled">
                         <option value="on" {% if settings and settings['vote_announce_enabled'] %}selected{% endif %}>Enabled</option>
@@ -150,9 +150,33 @@
         </form>
     </div>
 
-    <!-- Level Roles -->
     <div>
         <div class="admin-card">
+            <div class="card-head">
+                <h2>Clone Settings</h2>
+            </div>
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="clone_settings">
+                <div class="flex items-center gap-1" style="gap:0.75rem; flex-wrap:wrap;">
+                    <div class="form-field" style="margin-bottom:0; min-width:200px;">
+                        <label>Copy from guild</label>
+                        <select name="clone_source">
+                            {% for gid in guild_picker if gid != guild_id %}
+                            <option value="{{ gid }}">{{ gid }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="hint">Overwrites all current settings and level roles</div>
+                    </div>
+                    <div style="align-self:flex-end; padding-bottom:2px;">
+                        <button class="btn btn-warning btn-sm" type="submit" onclick="return confirm('Copy settings from the selected guild?')">&#128203; Clone</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Level Roles -->
+        <div class="admin-card" style="margin-top:1rem;">
             <h2>Level Roles</h2>
             <p class="card-sub">Auto-assigned roles when users reach specific levels.</p>
 
@@ -216,6 +240,39 @@
                 </tbody>
             </table>
         </div>
+    </div>
+</div>
+
+<div class="admin-card" style="margin-top:1.25rem;">
+    <div class="card-head">
+        <h2>Server Leaderboard</h2>
+        <a href="{{ url_for('admin.user_edit', guild_id=guild_id, user_id=leaderboard[0]['user_id']) if leaderboard else '#' }}" class="btn btn-secondary btn-sm">View</a>
+    </div>
+    <div class="admin-table-wrap">
+        <table class="admin-table compact">
+            <thead>
+                <tr><th class="num">#</th><th>User</th><th class="num">Level</th><th class="num">XP</th><th>Level Role</th></tr>
+            </thead>
+            <tbody>
+                {% for r in leaderboard %}
+                <tr data-href="{{ url_for('admin.user_edit', guild_id=guild_id, user_id=r['user_id']) }}">
+                    <td class="num">{{ loop.index }}</td>
+                    <td>{{ r['display_name'] or r['username'] or 'unknown' }}</td>
+                    <td class="num">{{ r['level'] }}</td>
+                    <td class="num">{{ "{:,}".format(r['total_xp']) }}</td>
+                    <td>
+                        {% if r['role'] %}
+                        <span class="mono" title="Role at level {{ r['role']['level'] }}">{{ r['role']['role_id'] }}</span>
+                        {% else %}
+                        <span class="muted">none</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5"><div class="empty-state" style="padding:1rem;">No users in this guild.</div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 {% endblock %}
