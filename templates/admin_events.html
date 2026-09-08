@@ -1,0 +1,89 @@
+{% extends "admin_base.html" %}
+{% block title %}Events{% endblock %}
+{% block heading %}Events{% endblock %}
+{% block subheading %}Admin events table: level ups, commands, guild joins and leaves{% endblock %}
+
+{% block content %}
+<div class="admin-card">
+    <form method="GET" action="{{ url_for('admin.events') }}" class="form-grid">
+        <div class="form-field">
+            <label>Filter</label>
+            <input type="text" name="q" value="{{ q }}" placeholder="e.g. level_up, guild_join, command, block_update..." autofocus>
+            <div class="hint">Click any badge to filter by that event type.</div>
+        </div>
+        <div class="form-field">
+            <label>&nbsp;</label>
+            <div class="flex gap-1">
+                <button class="btn btn-primary" type="submit">Filter</button>
+                {% if q %}<a href="{{ url_for('admin.events') }}" class="btn btn-secondary">Clear</a>{% endif %}
+            </div>
+        </div>
+    </form>
+    {% if event_types %}
+    <div class="flex gap-1" style="margin-top:0.75rem;flex-wrap:wrap;">
+        {% for t in event_types %}
+        <a class="badge {% if q == t.event_type %}info{% else %}muted{% endif %}" style="text-decoration:none;"
+           href="{{ url_for('admin.events', q=t.event_type) }}">{{ t.event_type }} ({{ t.c }})</a>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<div class="admin-card">
+    <div class="card-head">
+        <h2>Events</h2>
+        <span class="badge muted">{{ total }} events{% if q %} matching &ldquo;{{ q }}&rdquo;{% endif %}</span>
+    </div>
+    <div class="admin-table-wrap">
+        <table class="admin-table">
+            <thead>
+                <tr><th style="width:70px;">ID</th><th style="width:150px;">Time</th><th style="width:130px;">Event</th><th style="width:170px;">User</th><th style="width:140px;">Guild</th><th>Detail</th></tr>
+            </thead>
+            <tbody>
+                {% for e in entries %}
+                    <tr>
+                        <td class="mono muted" style="font-size:0.75rem;">#{{ e.id }}</td>
+                        <td class="mono" style="font-size:0.78rem;">{{ e.time }}</td>
+                        <td>
+                            <a class="badge {% if e.type == 'guild_leave' %}fail{% elif e.type in ('guild_join', 'level_up') %}ok{% elif e.type == 'block_update' %}warn{% else %}muted{% endif %}"
+                               href="{{ url_for('admin.events', q=e.type) }}" title="Filter by {{ e.type }}">{{ e.type }}</a>
+                        </td>
+                        <td>
+                            {% if e.user_id %}
+                                {% if e.user_name %}
+                                <a href="{{ url_for('admin.user_profile', user_id=e.user_id) }}" style="font-weight:600;">{{ e.user_name }}</a>
+                                <div class="muted mono" style="font-size:0.7rem;">{{ e.user_id }}</div>
+                                {% else %}
+                                <span class="mono" style="font-size:0.78rem;">{{ e.user_id }}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="muted">n/a</span>
+                            {% endif %}
+                        </td>
+                        <td class="mono" style="font-size:0.78rem;">{{ e.guild_id if e.guild_id else 'n/a' }}</td>
+                        <td style="word-break:break-word; font-size:0.88rem;">{{ e.detail }}</td>
+                    </tr>
+                {% else %}
+                <tr><td colspan="6"><div class="empty-state">No events found.</div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if total_pages > 1 %}
+    <div class="pagination">
+        {% if page > 1 %}<a href="{{ url_for('admin.events', q=q, page=page - 1) }}">&#x2190;</a>{% endif %}
+        {% for p in range(1, total_pages + 1) %}
+            {% if p == page %}
+                <span class="active">{{ p }}</span>
+            {% elif p <= 3 or p > total_pages - 2 or (p >= page - 2 and p <= page + 2) %}
+                <a href="{{ url_for('admin.events', q=q, page=p) }}">{{ p }}</a>
+            {% elif p == 4 or p == total_pages - 3 %}
+                <span class="dots">...</span>
+            {% endif %}
+        {% endfor %}
+        {% if page < total_pages %}<a href="{{ url_for('admin.events', q=q, page=page + 1) }}">&#x2192;</a>{% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
